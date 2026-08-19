@@ -1,0 +1,25 @@
+# Gradle and Android build outputs
+.gradle/
+.kotlin/
+build/
+app/build/
+app/.cxx/
+local.properties
+
+# IDE configuration
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+
+# Downloaded third-party archives
+.asset-cache/
+
+# Generated device, test, and documentation outputs
+artifacts/
+docs/
