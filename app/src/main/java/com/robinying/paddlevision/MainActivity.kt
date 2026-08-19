@@ -1,6 +1,5 @@
 package com.robinying.paddlevision
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,16 +18,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,7 +31,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface {
-                    VisionScreen()
+                    VisionRoute()
                 }
             }
         }
@@ -44,13 +39,29 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun VisionScreen() {
-    var state by remember { mutableStateOf(VisionUiState(message = NativeBridge.runtimeInfo())) }
-    val activity = androidx.compose.ui.platform.LocalContext.current
+private fun VisionRoute() {
+    val context = LocalContext.current
+    val viewModel: VisionViewModel = viewModel(factory = VisionViewModel.factory(context))
+    val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        state = VisionUiReducer.reduce(state, VisionAction.ImageSelected(uri?.toString()))
+        viewModel.onIntent(VisionIntent.ImageSelected(uri?.toString()))
     }
 
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            if (effect is VisionEffect.OpenPhotoPicker) {
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+        }
+    }
+    VisionScreen(state = state, onIntent = viewModel::onIntent)
+}
+
+@Composable
+private fun VisionScreen(
+    state: VisionUiState,
+    onIntent: (VisionIntent) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,9 +73,7 @@ private fun VisionScreen() {
             Text("OCR 语言", style = MaterialTheme.typography.titleMedium)
             RowOfOcrLanguages(
                 selected = state.ocrLanguage,
-                onSelect = { language ->
-                    state = VisionUiReducer.reduce(state, VisionAction.SelectOcrLanguage(language))
-                },
+                onSelect = { language -> onIntent(VisionIntent.SelectOcrLanguage(language)) },
             )
         }
         VisionTask.entries.forEach { task ->
@@ -75,35 +84,21 @@ private fun VisionScreen() {
                 ) {
                     Text(task.title, style = MaterialTheme.typography.titleMedium)
                     Text(task.description)
-                    OutlinedButton(
-                        onClick = { state = VisionUiReducer.reduce(state, VisionAction.SelectTask(task)) },
-                    ) {
+                    OutlinedButton(onClick = { onIntent(VisionIntent.SelectTask(task)) }) {
                         Text(if (state.selectedTask == task) "已选择" else "选择")
                     }
                 }
             }
         }
         Button(
-            onClick = {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
+            onClick = { onIntent(VisionIntent.PickImageClicked) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("从相册选择图片")
         }
         Button(
             enabled = state.canRun,
-            onClick = {
-                val requestState = state
-                val imageUri = requestState.imageUri ?: return@Button
-                state = VisionUiReducer.reduce(requestState, VisionAction.StartRun)
-                CoroutineScope(Dispatchers.Main).launch {
-                    val result = withContext(Dispatchers.Default) {
-                        runInference(activity, requestState, Uri.parse(imageUri))
-                    }
-                    state = VisionUiReducer.reduce(state, VisionAction.RunFinished(result))
-                }
-            },
+            onClick = { onIntent(VisionIntent.RunRequested) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(if (state.isRunning) "运行中" else "运行 ${state.selectedTask.title}")
@@ -126,30 +121,5 @@ private fun RowOfOcrLanguages(selected: OcrLanguage, onSelect: (OcrLanguage) -> 
                 Text(if (selected == language) "✓ ${language.title}" else language.title)
             }
         }
-    }
-}
-
-private fun runInference(
-    context: android.content.Context,
-    state: VisionUiState,
-    uri: Uri,
-): String {
-    return try {
-        val decodedImage = ImageDecoder(context).decode(uri)
-        try {
-            val models = ModelStore(context).prepare()
-            PaddleLiteEngine().run(
-                task = state.selectedTask,
-                bitmap = decodedImage.bitmap,
-                modelDirectory = models.rootDirectory,
-                ocrLanguage = state.ocrLanguage,
-            ).summary()
-        } finally {
-            decodedImage.bitmap.recycle()
-        }
-    } catch (exception: VisionInferenceException) {
-        "${exception.code}: ${exception.message}"
-    } catch (exception: Exception) {
-        "${VisionErrorCode.INFERENCE_FAILED}: ${exception.message ?: "未知错误"}"
     }
 }

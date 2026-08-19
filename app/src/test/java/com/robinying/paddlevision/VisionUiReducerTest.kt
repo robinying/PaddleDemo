@@ -8,7 +8,7 @@ class VisionUiReducerTest {
     fun selectingFaceResetsPreviousImageAndUsesDetectionOnlyCopy() {
         val current = VisionUiState(selectedTask = VisionTask.OCR, imageUri = "content://image")
 
-        val result = VisionUiReducer.reduce(current, VisionAction.SelectTask(VisionTask.FACE))
+        val result = VisionUiReducer.reduce(current, VisionIntent.SelectTask(VisionTask.FACE))
 
         assertEquals(VisionTask.FACE, result.selectedTask)
         assertEquals(null, result.imageUri)
@@ -19,7 +19,7 @@ class VisionUiReducerTest {
     fun selectingImageEnablesRunAndShowsTaskSpecificPrompt() {
         val current = VisionUiState(selectedTask = VisionTask.OBJECT)
 
-        val result = VisionUiReducer.reduce(current, VisionAction.ImageSelected("content://picked"))
+        val result = VisionUiReducer.reduce(current, VisionIntent.ImageSelected("content://picked"))
 
         assertEquals("content://picked", result.imageUri)
         assertEquals("已选择图片，可运行物体检测", result.message)
@@ -27,20 +27,26 @@ class VisionUiReducerTest {
     }
 
     @Test
-    fun nativeResultBecomesVisibleResultMessage() {
+    fun successfulRunMakesInferenceSummaryVisible() {
         val current = VisionUiState(selectedTask = VisionTask.OCR, imageUri = "content://picked", isRunning = true)
+        val inferenceResult = VisionInferenceResult(
+            task = VisionTask.OCR,
+            imageSize = ImageSize(100, 100),
+            elapsedMillis = 12,
+            textBlocks = listOf(OcrTextBlock("测试", 0.9f, PixelBox(0f, 0f, 10f, 10f))),
+        )
 
-        val result = VisionUiReducer.reduce(current, VisionAction.RunFinished("检测到 2 个文本块"))
+        val result = VisionUiReducer.runSucceeded(current, inferenceResult)
 
         assertEquals(false, result.isRunning)
-        assertEquals("检测到 2 个文本块", result.message)
+        assertEquals("识别到 1 个文本块，耗时 12 ms", result.message)
     }
 
     @Test
     fun changingOcrLanguageClearsImageAndShowsSelectedLanguage() {
         val current = VisionUiState(imageUri = "content://picked")
 
-        val result = VisionUiReducer.reduce(current, VisionAction.SelectOcrLanguage(OcrLanguage.FRENCH))
+        val result = VisionUiReducer.reduce(current, VisionIntent.SelectOcrLanguage(OcrLanguage.FRENCH))
 
         assertEquals(OcrLanguage.FRENCH, result.ocrLanguage)
         assertEquals(null, result.imageUri)
