@@ -18,6 +18,7 @@ data class VisionUiState(
     val ocrLanguage: OcrLanguage = OcrLanguage.CHINESE,
     val imageUri: String? = null,
     val isRunning: Boolean = false,
+    val result: VisionInferenceResult? = null,
     val message: String = "请选择能力并从相册选择图片",
 ) {
     val canRun: Boolean get() = imageUri != null && !isRunning
@@ -41,6 +42,7 @@ object VisionUiReducer {
             selectedTask = intent.task,
             imageUri = null,
             isRunning = false,
+            result = null,
             message = if (intent.task == VisionTask.FACE) {
                 "人脸检测仅显示位置，不识别身份"
             } else {
@@ -51,6 +53,7 @@ object VisionUiReducer {
             ocrLanguage = intent.language,
             imageUri = null,
             isRunning = false,
+            result = null,
             message = "已选择${intent.language.title} OCR，请重新选择图片",
         )
         VisionIntent.PickImageClicked -> state
@@ -59,6 +62,7 @@ object VisionUiReducer {
         } else {
             state.copy(
                 imageUri = intent.uri,
+                result = null,
                 message = "已选择图片，可运行${state.selectedTask.title}",
             )
         }
@@ -67,16 +71,19 @@ object VisionUiReducer {
 
     fun startRun(state: VisionUiState): VisionUiState = state.copy(
         isRunning = true,
+        result = null,
         message = "正在运行${state.selectedTask.title}…",
     )
 
     fun runSucceeded(state: VisionUiState, result: VisionInferenceResult): VisionUiState = state.copy(
         isRunning = false,
+        result = result,
         message = result.summary(),
     )
 
     fun runFailed(state: VisionUiState, userMessage: String): VisionUiState = state.copy(
         isRunning = false,
+        result = null,
         message = userMessage,
     )
 }

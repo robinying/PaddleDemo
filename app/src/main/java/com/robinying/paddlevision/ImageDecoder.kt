@@ -2,86 +2,59 @@ package com.robinying.paddlevision
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder as AndroidImageDecoder
 import android.net.Uri
-import androidx.exifinterface.media.ExifInterface
-import java.io.IOException
+import java.io.FileNotFoundException
 import kotlin.math.max
 
-/** Decodes Photo Picker content without resolving a URI to a filesystem path. */
+/** Decodes Photo Picker content URIs once with bounded software-backed output. */
 class ImageDecoder(
     private val context: Context,
     private val maxDimension: Int = MAX_DIMENSION,
     private val maxPixels: Int = MAX_PIXELS,
 ) {
     fun decode(uri: Uri): DecodedImage {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, bounds)
-        } ?: throw VisionInferenceException(
-            VisionErrorCode.IMAGE_DECODE_FAILED,
-            "无法读取所选图片",
-        )
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        return try {
+            val source = AndroidImageDecoder.createSource(context.contentResolver, uri)
+            val bitmap = AndroidImageDecoder.decodeBitmap(source) { decoder, imageInfo, _ ->
+                val targetSize = calculateTargetSize(imageInfo.size.width, imageInfo.size.height)
+                decoder.allocator = AndroidImageDecoder.ALLOCATOR_SOFTWARE
+                decoder.setTargetSize(targetSize.width, targetSize.height)
+            }.toArgb8888()
+            DecodedImage(bitmap = bitmap, sourceSize = ImageSize(bitmap.width, bitmap.height))
+        } catch (exception: FileNotFoundException) {
+            throw VisionInferenceException(
+                VisionErrorCode.IMAGE_DECODE_FAILED,
+                "所选图片已不可访问，请重新选择图片",
+            )
+        } catch (exception: Exception) {
+            throw VisionInferenceException(
+                VisionErrorCode.IMAGE_DECODE_FAILED,
+                "无法解码所选图片，请选择常见图片格式后重试",
+            )
+        }
+    }
+
+    private fun calculateTargetSize(width: Int, height: Int): ImageSize {
+        if (width <= 0 || height <= 0) {
             throw VisionInferenceException(VisionErrorCode.IMAGE_DECODE_FAILED, "所选文件不是有效图片")
         }
-
-        val sampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight)
-        val bitmap = context.contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(
-                it,
-                null,
-                BitmapFactory.Options().apply {
-                    inSampleSize = sampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                },
-            )
-        }?.copy(Bitmap.Config.ARGB_8888, false) ?: throw VisionInferenceException(
-            VisionErrorCode.IMAGE_DECODE_FAILED,
-            "无法解码所选图片",
-        )
-
-        return DecodedImage(
-            bitmap = rotateForExif(uri, bitmap),
-            sourceSize = ImageSize(bounds.outWidth, bounds.outHeight),
+        val dimensionScale = minOf(1f, maxDimension.toFloat() / max(width, height))
+        val pixelScale = minOf(1f, kotlin.math.sqrt(maxPixels.toDouble() / (width.toLong() * height)).toFloat())
+        val scale = minOf(dimensionScale, pixelScale)
+        return ImageSize(
+            width = max(1, (width * scale).toInt()),
+            height = max(1, (height * scale).toInt()),
         )
     }
 
-    private fun calculateSampleSize(width: Int, height: Int): Int {
-        var sampleSize = 1
-        while (
-            width / sampleSize > maxDimension ||
-                height / sampleSize > maxDimension ||
-                width.toLong() * height.toLong() / sampleSize / sampleSize > maxPixels
-        ) {
-            sampleSize *= 2
-        }
-        return sampleSize
-    }
-
-    private fun rotateForExif(uri: Uri, bitmap: Bitmap): Bitmap {
-        val orientation = try {
-            context.contentResolver.openInputStream(uri)?.use {
-                ExifInterface(it).getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL,
-                )
-            } ?: ExifInterface.ORIENTATION_NORMAL
-        } catch (_: IOException) {
-            ExifInterface.ORIENTATION_NORMAL
-        }
-        val degrees = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> 0f
-        }
-        if (degrees == 0f) {
-            return bitmap
-        }
-        val matrix = android.graphics.Matrix().apply { postRotate(degrees) }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            .also { rotated -> if (rotated !== bitmap) bitmap.recycle() }
+    private fun Bitmap.toArgb8888(): Bitmap {
+        return if (config == Bitmap.Config.ARGB_8888) {
+            this
+        } else {
+            copy(Bitmap.Config.ARGB_8888, false)
+                ?: throw VisionInferenceException(VisionErrorCode.IMAGE_DECODE_FAILED, "无法转换所选图片")
+        }.also { converted -> if (converted !== this) recycle() }
     }
 
     private companion object {
