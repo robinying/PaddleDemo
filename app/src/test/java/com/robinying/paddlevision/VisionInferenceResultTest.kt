@@ -17,7 +17,7 @@ class VisionInferenceResultTest {
             ),
         )
 
-        assertEquals("检测到 2 个目标，耗时 37 ms", result.summary())
+        assertEquals(UiText(R.string.result_object_summary, listOf<Any>(2, 37L)), result.summaryText())
     }
 
     @Test

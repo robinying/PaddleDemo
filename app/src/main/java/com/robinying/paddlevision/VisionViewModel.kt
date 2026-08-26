@@ -15,9 +15,8 @@ import kotlinx.coroutines.launch
 /** Owns Vision screen state and applies the UDF intent-to-state transition. */
 class VisionViewModel(
     private val inferenceUseCase: VisionInferenceUseCase,
-    initialMessage: String = "请选择能力并从相册选择图片",
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(VisionUiState(message = initialMessage))
+    private val mutableUiState = MutableStateFlow(VisionUiState())
     private val effectChannel = Channel<VisionEffect>(Channel.BUFFERED)
     private var inferenceJob: Job? = null
     private var activeRequestId = 0L
@@ -32,7 +31,7 @@ class VisionViewModel(
                 mutableUiState.value = mutableUiState.value.copy(
                     isRunning = false,
                     result = null,
-                    message = "请选择一张图片",
+                    message = UiText(R.string.message_pick_image),
                 )
                 effectChannel.trySend(VisionEffect.OpenPhotoPicker)
             }
@@ -66,14 +65,14 @@ class VisionViewModel(
                 if (isActiveRequest(requestId)) {
                     mutableUiState.value = VisionUiReducer.runFailed(
                         mutableUiState.value,
-                        "${exception.code}: ${exception.message}",
+                        UiText(R.string.message_inference_failed, listOf(exception.code.name)),
                     )
                 }
             } catch (exception: Exception) {
                 if (isActiveRequest(requestId)) {
                     mutableUiState.value = VisionUiReducer.runFailed(
                         mutableUiState.value,
-                        "${VisionErrorCode.INFERENCE_FAILED}: ${exception.message ?: "未知错误"}",
+                        UiText(R.string.message_inference_failed, listOf(VisionErrorCode.INFERENCE_FAILED.name)),
                     )
                 }
             }
@@ -100,7 +99,6 @@ class VisionViewModel(
                 require(modelClass.isAssignableFrom(VisionViewModel::class.java))
                 return VisionViewModel(
                     inferenceUseCase = LocalVisionInferenceUseCase(context.applicationContext),
-                    initialMessage = NativeBridge.bridgeInfo(),
                 ) as T
             }
         }

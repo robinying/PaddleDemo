@@ -17,7 +17,7 @@ class VisionRouteInstrumentedTest {
 
     @Test
     fun cancellingTheSystemPhotoPickerReturnsToTheImageSelectionState() {
-        composeRule.onNodeWithContentDescription("从相册选择图片").performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.pick_image_accessibility)).performClick()
 
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         assertTrue(
@@ -28,7 +28,12 @@ class VisionRouteInstrumentedTest {
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             try {
-                composeRule.onNodeWithContentDescription("分析结果：未选择图片").assertExists()
+                composeRule.onNodeWithContentDescription(
+                    composeRule.activity.getString(
+                        R.string.analysis_result_accessibility,
+                        composeRule.activity.getString(R.string.message_no_image_selected),
+                    ),
+                ).assertExists()
                 true
             } catch (_: AssertionError) {
                 false

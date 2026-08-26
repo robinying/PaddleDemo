@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -133,16 +134,16 @@ private fun Header() {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "PADDLE VISION",
+                text = stringResource(R.string.app_name),
                 color = Ink,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 1.5.sp,
             )
-            Text("端侧图像分析工作台", color = Slate, fontSize = 14.sp)
+            Text(stringResource(R.string.app_subtitle), color = Slate, fontSize = 14.sp)
         }
         Text(
-            text = "本地离线",
+            text = stringResource(R.string.offline),
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
                 .background(TealMist)
@@ -161,7 +162,7 @@ private fun TaskSelector(
     onIntent: (VisionIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel("分析模式")
+        SectionLabel(stringResource(R.string.analysis_mode))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,10 +171,11 @@ private fun TaskSelector(
         ) {
             VisionTask.entries.forEach { task ->
                 val isSelected = task == selected
+                val selectTaskDescription = stringResource(R.string.select_task, stringResource(task.titleRes))
                 OutlinedButton(
                     enabled = enabled,
                     onClick = { onIntent(VisionIntent.SelectTask(task)) },
-                    modifier = Modifier.semantics { contentDescription = "选择${task.title}" },
+                    modifier = Modifier.semantics { contentDescription = selectTaskDescription },
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = if (isSelected) Paper else Ink,
@@ -184,7 +186,7 @@ private fun TaskSelector(
                     ),
                 ) {
                     Text(
-                        text = task.title,
+                        text = stringResource(task.titleRes),
                         modifier = if (isSelected) Modifier
                             .background(SignalTeal)
                             .padding(horizontal = 2.dp) else Modifier,
@@ -193,7 +195,7 @@ private fun TaskSelector(
                 }
             }
         }
-        Text(selected.description, color = Slate, fontSize = 13.sp)
+        Text(stringResource(selected.descriptionRes), color = Slate, fontSize = 13.sp)
     }
 }
 
@@ -204,7 +206,7 @@ private fun LanguageSelector(
     onIntent: (VisionIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel("识别语言")
+        SectionLabel(stringResource(R.string.recognition_language))
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -219,7 +221,7 @@ private fun LanguageSelector(
                         contentColor = if (selectedLanguage) SignalTeal else Slate,
                     ),
                 ) {
-                    Text(if (selectedLanguage) "✓ ${language.title}" else language.title)
+                    Text(if (selectedLanguage) stringResource(R.string.selected_language, stringResource(language.titleRes)) else stringResource(language.titleRes))
                 }
             }
         }
@@ -278,17 +280,17 @@ private fun BoxScope.ViewfinderCorners(color: Color) {
 private fun EmptyWorkspace(task: VisionTask) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("＋", color = Ink, fontSize = 34.sp, fontWeight = FontWeight.Light)
-        Text("选择一张图片开始${task.title}", color = Ink, fontWeight = FontWeight.Bold)
-        Text("图片仅在此设备处理", color = Slate, fontSize = 13.sp)
+        Text(stringResource(R.string.choose_image_to_start, stringResource(task.titleRes)), color = Ink, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.local_processing), color = Slate, fontSize = 13.sp)
     }
 }
 
 @Composable
 private fun SelectedWorkspace(task: VisionTask) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("已准备", color = SignalTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Text("图片已就绪，可运行${task.title}", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text("不会上传或保存图片内容", color = Slate, fontSize = 13.sp)
+        Text(stringResource(R.string.ready), color = SignalTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.image_ready, stringResource(task.titleRes)), color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.no_image_upload), color = Slate, fontSize = 13.sp)
     }
 }
 
@@ -296,13 +298,15 @@ private fun SelectedWorkspace(task: VisionTask) {
 private fun RunningWorkspace(task: VisionTask) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CircularProgressIndicator(color = Amber, modifier = Modifier.size(38.dp))
-        Text("正在分析${task.title}", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text("端侧模型运行中", color = Slate, fontSize = 13.sp)
+        Text(stringResource(R.string.analyzing_task, stringResource(task.titleRes)), color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.on_device_model), color = Slate, fontSize = 13.sp)
     }
 }
 
 @Composable
 private fun ActionArea(state: VisionUiState, onIntent: (VisionIntent) -> Unit) {
+    val pickImageDescription = stringResource(R.string.pick_image_accessibility)
+    val runTaskText = stringResource(R.string.run_task, stringResource(state.selectedTask.titleRes))
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(
             enabled = !state.isRunning,
@@ -310,11 +314,11 @@ private fun ActionArea(state: VisionUiState, onIntent: (VisionIntent) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
-                .semantics { contentDescription = "从相册选择图片" },
+                .semantics { contentDescription = pickImageDescription },
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Ink),
         ) {
-            Text(if (state.imageUri == null) "选择图片" else "更换图片", fontWeight = FontWeight.Bold)
+            Text(stringResource(if (state.imageUri == null) R.string.pick_image else R.string.change_image), fontWeight = FontWeight.Bold)
         }
         Button(
             enabled = state.canRun,
@@ -322,7 +326,7 @@ private fun ActionArea(state: VisionUiState, onIntent: (VisionIntent) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
-                .semantics { contentDescription = "运行${state.selectedTask.title}" },
+                .semantics { contentDescription = runTaskText },
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = SignalTeal,
@@ -330,17 +334,19 @@ private fun ActionArea(state: VisionUiState, onIntent: (VisionIntent) -> Unit) {
                 disabledContentColor = Slate,
             ),
         ) {
-            Text(if (state.isRunning) "分析中…" else "运行 ${state.selectedTask.title}", fontWeight = FontWeight.Bold)
+            Text(if (state.isRunning) stringResource(R.string.analyzing) else runTaskText, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
 private fun ResultPanel(state: VisionUiState) {
+    val message = localizedText(state.message)
+    val resultDescription = stringResource(R.string.analysis_result_accessibility, message)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "分析结果：${state.message}" },
+            .semantics { contentDescription = resultDescription },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Paper),
         border = androidx.compose.foundation.BorderStroke(1.dp, Line),
@@ -349,12 +355,12 @@ private fun ResultPanel(state: VisionUiState) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            SectionLabel("分析结果")
+            SectionLabel(stringResource(R.string.analysis_result))
             state.result?.let { result -> ResultMetrics(result) }
-            Text(state.message, color = Ink, fontSize = 15.sp)
+            Text(message, color = Ink, fontSize = 15.sp)
             if (state.result?.task == VisionTask.FACE || state.selectedTask == VisionTask.FACE) {
                 Text(
-                    "人脸检测仅显示位置与置信度，不识别身份。",
+                    stringResource(R.string.face_privacy_note),
                     color = Slate,
                     fontSize = 12.sp,
                 )
@@ -366,9 +372,9 @@ private fun ResultPanel(state: VisionUiState) {
 @Composable
 private fun ResultMetrics(result: VisionInferenceResult) {
     val (label, count) = when (result.task) {
-        VisionTask.OCR -> "文本块" to result.textBlocks.size
-        VisionTask.OBJECT -> "检测目标" to result.detections.size
-        VisionTask.FACE -> "检测人脸" to result.faces.size
+        VisionTask.OCR -> stringResource(R.string.text_blocks) to result.textBlocks.size
+        VisionTask.OBJECT -> stringResource(R.string.detected_objects) to result.detections.size
+        VisionTask.FACE -> stringResource(R.string.detected_faces) to result.faces.size
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -380,7 +386,7 @@ private fun ResultMetrics(result: VisionInferenceResult) {
             Text(count.toString(), color = SignalTeal, fontSize = 32.sp, fontWeight = FontWeight.Black)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("端到端耗时", color = Slate, fontSize = 12.sp)
+            Text(stringResource(R.string.end_to_end_time), color = Slate, fontSize = 12.sp)
             Text(
                 "${result.elapsedMillis} ms",
                 color = Ink,
@@ -390,6 +396,9 @@ private fun ResultMetrics(result: VisionInferenceResult) {
         }
     }
 }
+
+@Composable
+private fun localizedText(text: UiText): String = stringResource(text.resourceId, *text.args.toTypedArray())
 
 @Composable
 private fun SectionLabel(text: String) {

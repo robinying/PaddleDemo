@@ -12,10 +12,10 @@ data class VisionInferenceResult(
     val detections: List<DetectedObject> = emptyList(),
     val faces: List<DetectedFace> = emptyList(),
 ) {
-    fun summary(): String = when (task) {
-        VisionTask.OCR -> "识别到 ${textBlocks.size} 个文本块，耗时 ${elapsedMillis} ms"
-        VisionTask.OBJECT -> "检测到 ${detections.size} 个目标，耗时 ${elapsedMillis} ms"
-        VisionTask.FACE -> "检测到 ${faces.size} 张人脸，耗时 ${elapsedMillis} ms"
+    fun summaryText(): UiText = when (task) {
+        VisionTask.OCR -> UiText(R.string.result_ocr_summary, listOf(textBlocks.size, elapsedMillis))
+        VisionTask.OBJECT -> UiText(R.string.result_object_summary, listOf(detections.size, elapsedMillis))
+        VisionTask.FACE -> UiText(R.string.result_face_summary, listOf(faces.size, elapsedMillis))
     }
 }
 

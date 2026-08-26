@@ -42,7 +42,7 @@ class VisionViewModelTest {
 
         viewModel.onIntent(VisionIntent.RunRequested)
 
-        assertEquals("检测到 1 个目标，耗时 8 ms", viewModel.uiState.value.message)
+        assertEquals(UiText(R.string.result_object_summary, listOf<Any>(1, 8L)), viewModel.uiState.value.message)
         assertFalse(viewModel.uiState.value.isRunning)
     }
 

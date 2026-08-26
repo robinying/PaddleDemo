@@ -1,17 +1,17 @@
 package com.robinying.paddlevision
 
-enum class VisionTask(val title: String, val description: String, val nativeId: String) {
-    OCR("OCR", "识别图片中的文字", "ocr"),
-    OBJECT("物体检测", "检测类别、位置和置信度", "object"),
-    FACE("人脸检测", "仅检测人脸位置，不识别身份", "face"),
+enum class VisionTask(val titleRes: Int, val descriptionRes: Int, val nativeId: String) {
+    OCR(R.string.task_ocr, R.string.task_ocr_description, "ocr"),
+    OBJECT(R.string.task_object, R.string.task_object_description, "object"),
+    FACE(R.string.task_face, R.string.task_face_description, "face"),
 }
 
-enum class OcrLanguage(val title: String, val nativeId: String) {
-    CHINESE("中文", "zh"),
-    ENGLISH("英语", "en"),
-    FRENCH("法语", "fr"),
-    SPANISH("西班牙语", "es"),
+enum class OcrLanguage(val titleRes: Int, val nativeId: String) {
+    CHINESE(R.string.language_chinese, "zh"), ENGLISH(R.string.language_english, "en"),
+    FRENCH(R.string.language_french, "fr"), SPANISH(R.string.language_spanish, "es"),
 }
+
+data class UiText(val resourceId: Int, val args: List<Any> = emptyList())
 
 data class VisionUiState(
     val selectedTask: VisionTask = VisionTask.OCR,
@@ -19,7 +19,7 @@ data class VisionUiState(
     val imageUri: String? = null,
     val isRunning: Boolean = false,
     val result: VisionInferenceResult? = null,
-    val message: String = "请选择能力并从相册选择图片",
+    val message: UiText = UiText(R.string.message_choose_capability),
 ) {
     val canRun: Boolean get() = imageUri != null && !isRunning
 }
@@ -43,28 +43,24 @@ object VisionUiReducer {
             imageUri = null,
             isRunning = false,
             result = null,
-            message = if (intent.task == VisionTask.FACE) {
-                "人脸检测仅显示位置，不识别身份"
-            } else {
-                "已选择${intent.task.title}，请从相册选择图片"
-            },
+            message = UiText(if (intent.task == VisionTask.FACE) R.string.message_face_privacy else R.string.message_task_selected),
         )
         is VisionIntent.SelectOcrLanguage -> state.copy(
             ocrLanguage = intent.language,
             imageUri = null,
             isRunning = false,
             result = null,
-            message = "已选择${intent.language.title} OCR，请重新选择图片",
+            message = UiText(R.string.message_language_selected),
         )
         VisionIntent.PickImageClicked -> state
         is VisionIntent.ImageSelected -> if (intent.uri == null) {
-            state.copy(isRunning = false, message = "未选择图片")
+            state.copy(isRunning = false, message = UiText(R.string.message_no_image_selected))
         } else {
             state.copy(
                 imageUri = intent.uri,
                 isRunning = false,
                 result = null,
-                message = "已选择图片，可运行${state.selectedTask.title}",
+                message = UiText(R.string.message_image_selected),
             )
         }
         VisionIntent.RunRequested -> state
@@ -73,16 +69,16 @@ object VisionUiReducer {
     fun startRun(state: VisionUiState): VisionUiState = state.copy(
         isRunning = true,
         result = null,
-        message = "正在运行${state.selectedTask.title}…",
+        message = UiText(R.string.message_running),
     )
 
     fun runSucceeded(state: VisionUiState, result: VisionInferenceResult): VisionUiState = state.copy(
         isRunning = false,
         result = result,
-        message = result.summary(),
+        message = result.summaryText(),
     )
 
-    fun runFailed(state: VisionUiState, userMessage: String): VisionUiState = state.copy(
+    fun runFailed(state: VisionUiState, userMessage: UiText): VisionUiState = state.copy(
         isRunning = false,
         result = null,
         message = userMessage,

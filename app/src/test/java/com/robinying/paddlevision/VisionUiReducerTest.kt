@@ -19,7 +19,7 @@ class VisionUiReducerTest {
         assertEquals(VisionTask.FACE, result.selectedTask)
         assertNull(result.imageUri)
         assertNull(result.result)
-        assertEquals("人脸检测仅显示位置，不识别身份", result.message)
+        assertEquals(UiText(R.string.message_face_privacy), result.message)
     }
 
     @Test
@@ -33,7 +33,7 @@ class VisionUiReducerTest {
 
         assertEquals("content://picked", result.imageUri)
         assertNull(result.result)
-        assertEquals("已选择图片，可运行物体检测", result.message)
+        assertEquals(UiText(R.string.message_image_selected), result.message)
         assertEquals(true, result.canRun)
     }
 
@@ -56,7 +56,7 @@ class VisionUiReducerTest {
 
         assertEquals(false, result.isRunning)
         assertEquals(inferenceResult, result.result)
-        assertEquals("识别到 1 个文本块，耗时 12 ms", result.message)
+        assertEquals(UiText(R.string.result_ocr_summary, listOf<Any>(1, 12L)), result.message)
     }
 
     @Test
@@ -67,7 +67,7 @@ class VisionUiReducerTest {
             result = sampleOcrResult(),
         )
 
-        val result = VisionUiReducer.runFailed(current, "INFERENCE_FAILED: 推理失败")
+        val result = VisionUiReducer.runFailed(current, UiText(R.string.message_inference_failed, listOf("INFERENCE_FAILED")))
 
         assertNull(result.result)
         assertEquals(false, result.isRunning)
@@ -82,7 +82,7 @@ class VisionUiReducerTest {
         assertEquals(OcrLanguage.FRENCH, result.ocrLanguage)
         assertNull(result.imageUri)
         assertNull(result.result)
-        assertEquals("已选择法语 OCR，请重新选择图片", result.message)
+        assertEquals(UiText(R.string.message_language_selected), result.message)
     }
 
     private fun sampleOcrResult() = VisionInferenceResult(
