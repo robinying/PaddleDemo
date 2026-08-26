@@ -26,6 +26,53 @@ class VisionGeometryTest {
     }
 
     @Test
+    fun ocrRegionExtractionSeparatesComponentsAndOrdersThemForReading() {
+        val regions = extractOcrRegions(
+            values = floatArrayOf(
+                0f, 0.9f, 0.9f, 0f, 0f, 0f,
+                0f, 0.9f, 0.9f, 0f, 0.8f, 0.8f,
+                0f, 0f, 0f, 0f, 0.8f, 0.8f,
+            ),
+            mapWidth = 6,
+            mapHeight = 3,
+            sourceSize = ImageSize(60, 30),
+        )
+
+        assertEquals(
+            listOf(
+                PixelBox(10f, 0f, 30f, 20f),
+                PixelBox(40f, 10f, 60f, 30f),
+            ),
+            regions,
+        )
+    }
+
+    @Test
+    fun ocrRegionExtractionIgnoresSinglePixelNoise() {
+        val regions = extractOcrRegions(
+            values = floatArrayOf(0.9f, 0f, 0f, 0f),
+            mapWidth = 2,
+            mapHeight = 2,
+            sourceSize = ImageSize(20, 20),
+        )
+
+        assertTrue(regions.isEmpty())
+    }
+
+    @Test
+    fun ocrRegionExtractionLimitsOutputRegionCount() {
+        val regions = extractOcrRegions(
+            values = floatArrayOf(0.9f, 0.9f, 0f, 0.8f, 0.8f, 0f, 0.7f, 0.7f, 0.7f),
+            mapWidth = 9,
+            mapHeight = 1,
+            sourceSize = ImageSize(90, 10),
+            maxRegions = 2,
+        )
+
+        assertEquals(2, regions.size)
+    }
+
+    @Test
     fun nonMaximumSuppressionKeepsHighestScoreAndSeparateBox() {
         val result = VisionGeometry.nonMaximumSuppression(
             boxes = listOf(

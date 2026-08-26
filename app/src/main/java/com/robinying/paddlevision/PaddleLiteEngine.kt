@@ -1,13 +1,13 @@
 package com.robinying.paddlevision
 
 import android.graphics.Bitmap
-import android.graphics.Rect
 import com.baidu.paddle.lite.MobileConfig
 import com.baidu.paddle.lite.PaddlePredictor
 import com.baidu.paddle.lite.PowerMode
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.util.ArrayDeque
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -92,7 +92,10 @@ class PaddleLiteEngine {
             detectorOutput = detector.getOutput(0).floatDataOrThrow()
             detectorShape = detector.getOutput(0).shape()
         }
-        val regions = detectorOutput.toOcrRegions(detectorShape, bitmap, detectorSize)
+        val regions = detectorOutput.toOcrRegions(
+            shape = detectorShape,
+            sourceSize = ImageSize(bitmap.width, bitmap.height),
+        )
         if (regions.isEmpty()) {
             return VisionInferenceResult(
                 task = VisionTask.OCR,
@@ -285,38 +288,92 @@ private fun calculateOcrDetectorSize(width: Int, height: Int): ImageSize {
     )
 }
 
-private fun FloatArray.toOcrRegions(
-    shape: LongArray,
-    source: Bitmap,
-    detectorSize: ImageSize,
+internal fun extractOcrRegions(
+    values: FloatArray,
+    mapWidth: Int,
+    mapHeight: Int,
+    sourceSize: ImageSize,
+    threshold: Float = 0.3f,
+    maxRegions: Int = 20,
 ): List<PixelBox> {
+    val minimumComponentPixels = 2
+    val minimumRegionSize = 4f
+    if (mapWidth <= 0 || mapHeight <= 0 || maxRegions < 0 || values.size < mapWidth * mapHeight) {
+        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 检测输出数据无效")
+    }
+    val visited = BooleanArray(mapWidth * mapHeight)
+    val regions = mutableListOf<OcrRegionCandidate>()
+    for (startIndex in visited.indices) {
+        if (visited[startIndex] || values[startIndex] < threshold) {
+            continue
+        }
+        val queue = ArrayDeque<Int>()
+        queue.addLast(startIndex)
+        visited[startIndex] = true
+        var pixelCount = 0
+        var scoreSum = 0f
+        var minX = mapWidth
+        var minY = mapHeight
+        var maxX = -1
+        var maxY = -1
+        while (queue.isNotEmpty()) {
+            val index = queue.removeFirst()
+            val x = index % mapWidth
+            val y = index / mapWidth
+            pixelCount++
+            scoreSum += values[index]
+            minX = min(minX, x)
+            minY = min(minY, y)
+            maxX = max(maxX, x)
+            maxY = max(maxY, y)
+            for (offsetY in -1..1) {
+                for (offsetX in -1..1) {
+                    if (offsetX == 0 && offsetY == 0) {
+                        continue
+                    }
+                    val neighborX = x + offsetX
+                    val neighborY = y + offsetY
+                    if (neighborX !in 0 until mapWidth || neighborY !in 0 until mapHeight) {
+                        continue
+                    }
+                    val neighborIndex = neighborY * mapWidth + neighborX
+                    if (!visited[neighborIndex] && values[neighborIndex] >= threshold) {
+                        visited[neighborIndex] = true
+                        queue.addLast(neighborIndex)
+                    }
+                }
+            }
+        }
+        if (pixelCount < minimumComponentPixels || scoreSum / pixelCount < threshold) {
+            continue
+        }
+        val scaleX = sourceSize.width.toFloat() / mapWidth
+        val scaleY = sourceSize.height.toFloat() / mapHeight
+        val box = PixelBox(
+            left = minX * scaleX,
+            top = minY * scaleY,
+            right = (maxX + 1) * scaleX,
+            bottom = (maxY + 1) * scaleY,
+        )
+        if (box.width >= minimumRegionSize && box.height >= minimumRegionSize) {
+            regions += OcrRegionCandidate(box)
+        }
+    }
+    return regions
+        .sortedWith(compareBy<OcrRegionCandidate> { it.boundingBox.top }.thenBy { it.boundingBox.left })
+        .take(maxRegions)
+        .map(OcrRegionCandidate::boundingBox)
+}
+
+private data class OcrRegionCandidate(val boundingBox: PixelBox)
+
+private fun FloatArray.toOcrRegions(shape: LongArray, sourceSize: ImageSize): List<PixelBox> {
     if (shape.size < 4) {
         throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 检测输出 shape 无效")
     }
     val mapHeight = shape[shape.size - 2].toInt()
     val mapWidth = shape.last().toInt()
-    if (mapHeight <= 0 || mapWidth <= 0 || size < mapWidth * mapHeight) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 检测输出数据无效")
-    }
-    var minX = mapWidth
-    var minY = mapHeight
-    var maxX = -1
-    var maxY = -1
-    for (y in 0 until mapHeight) {
-        for (x in 0 until mapWidth) {
-            if (this[y * mapWidth + x] >= 0.3f) {
-                minX = min(minX, x)
-                minY = min(minY, y)
-                maxX = max(maxX, x)
-                maxY = max(maxY, y)
-            }
-        }
-    }
-    if (maxX < minX || maxY < minY) return emptyList()
-    val scaleX = source.width.toFloat() / mapWidth
-    val scaleY = source.height.toFloat() / mapHeight
-    val box = PixelBox(minX * scaleX, minY * scaleY, (maxX + 1) * scaleX, (maxY + 1) * scaleY)
-    return if (box.width < 4f || box.height < 4f) emptyList() else listOf(box)
+    return extractOcrRegions(this, mapWidth, mapHeight, sourceSize)
 }
 
 private fun Bitmap.crop(region: PixelBox): Bitmap {

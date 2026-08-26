@@ -1,10 +1,13 @@
 package com.robinying.paddlevision
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -55,6 +58,63 @@ class VisionViewModelTest {
         assertTrue(viewModel.uiState.value.isRunning)
         assertEquals(1, inferenceUseCase.runCount)
     }
+
+    @Test
+    fun switchingTaskInvalidatesRunningInferenceResult() = runTest {
+        val inferenceUseCase = ControllableVisionInferenceUseCase()
+        val viewModel = VisionViewModel(inferenceUseCase)
+        viewModel.onIntent(VisionIntent.ImageSelected("content://ocr"))
+        viewModel.onIntent(VisionIntent.RunRequested)
+        inferenceUseCase.awaitRunStarted()
+
+        viewModel.onIntent(VisionIntent.SelectTask(VisionTask.FACE))
+        inferenceUseCase.complete(
+            VisionInferenceResult(VisionTask.OCR, ImageSize(100, 100), elapsedMillis = 5),
+        )
+        advanceUntilIdle()
+
+        assertEquals(VisionTask.FACE, viewModel.uiState.value.selectedTask)
+        assertNull(viewModel.uiState.value.imageUri)
+        assertNull(viewModel.uiState.value.result)
+        assertFalse(viewModel.uiState.value.isRunning)
+    }
+
+    @Test
+    fun openingPickerInvalidatesRunningInferenceResult() = runTest {
+        val inferenceUseCase = ControllableVisionInferenceUseCase()
+        val viewModel = VisionViewModel(inferenceUseCase)
+        viewModel.onIntent(VisionIntent.ImageSelected("content://first"))
+        viewModel.onIntent(VisionIntent.RunRequested)
+        inferenceUseCase.awaitRunStarted()
+
+        viewModel.onIntent(VisionIntent.PickImageClicked)
+        inferenceUseCase.complete(
+            VisionInferenceResult(VisionTask.OCR, ImageSize(100, 100), elapsedMillis = 5),
+        )
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.result)
+        assertFalse(viewModel.uiState.value.isRunning)
+    }
+
+    @Test
+    fun selectingNewImageInvalidatesRunningInferenceResult() = runTest {
+        val inferenceUseCase = ControllableVisionInferenceUseCase()
+        val viewModel = VisionViewModel(inferenceUseCase)
+        viewModel.onIntent(VisionIntent.ImageSelected("content://first"))
+        viewModel.onIntent(VisionIntent.RunRequested)
+        inferenceUseCase.awaitRunStarted()
+
+        viewModel.onIntent(VisionIntent.ImageSelected("content://second"))
+        inferenceUseCase.complete(
+            VisionInferenceResult(VisionTask.OCR, ImageSize(100, 100), elapsedMillis = 5),
+        )
+        advanceUntilIdle()
+
+        assertEquals("content://second", viewModel.uiState.value.imageUri)
+        assertNull(viewModel.uiState.value.result)
+        assertFalse(viewModel.uiState.value.isRunning)
+    }
 }
 
 private class FakeVisionInferenceUseCase(
@@ -77,5 +137,25 @@ private class FakeVisionInferenceUseCase(
             kotlinx.coroutines.awaitCancellation()
         }
         return result
+    }
+}
+
+private class ControllableVisionInferenceUseCase : VisionInferenceUseCase {
+    private val started = CompletableDeferred<Unit>()
+    private val result = CompletableDeferred<VisionInferenceResult>()
+
+    suspend fun awaitRunStarted() = started.await()
+
+    fun complete(value: VisionInferenceResult) {
+        result.complete(value)
+    }
+
+    override suspend fun run(
+        task: VisionTask,
+        ocrLanguage: OcrLanguage,
+        imageUri: String,
+    ): VisionInferenceResult {
+        started.complete(Unit)
+        return result.await()
     }
 }

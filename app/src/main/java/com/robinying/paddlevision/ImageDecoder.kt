@@ -22,6 +22,8 @@ class ImageDecoder(
                 decoder.setTargetSize(targetSize.width, targetSize.height)
             }.toArgb8888()
             DecodedImage(bitmap = bitmap, sourceSize = ImageSize(bitmap.width, bitmap.height))
+        } catch (exception: VisionInferenceException) {
+            throw exception
         } catch (exception: FileNotFoundException) {
             throw VisionInferenceException(
                 VisionErrorCode.IMAGE_DECODE_FAILED,

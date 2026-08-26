@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,15 +19,28 @@ class VisionViewModel(
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(VisionUiState(message = initialMessage))
     private val effectChannel = Channel<VisionEffect>(Channel.BUFFERED)
+    private var inferenceJob: Job? = null
+    private var activeRequestId = 0L
 
     val uiState: StateFlow<VisionUiState> = mutableUiState.asStateFlow()
     val effects = effectChannel.receiveAsFlow()
 
     fun onIntent(intent: VisionIntent) {
         when (intent) {
-            VisionIntent.PickImageClicked -> effectChannel.trySend(VisionEffect.OpenPhotoPicker)
+            VisionIntent.PickImageClicked -> {
+                invalidateActiveInference()
+                mutableUiState.value = mutableUiState.value.copy(
+                    isRunning = false,
+                    result = null,
+                    message = "请选择一张图片",
+                )
+                effectChannel.trySend(VisionEffect.OpenPhotoPicker)
+            }
             VisionIntent.RunRequested -> runInference()
-            else -> mutableUiState.value = VisionUiReducer.reduce(mutableUiState.value, intent)
+            else -> {
+                invalidateActiveInference()
+                mutableUiState.value = VisionUiReducer.reduce(mutableUiState.value, intent)
+            }
         }
     }
 
@@ -36,27 +50,47 @@ class VisionViewModel(
         if (request.isRunning) {
             return
         }
+        val requestId = ++activeRequestId
         mutableUiState.value = VisionUiReducer.startRun(request)
-        viewModelScope.launch {
+        inferenceJob = viewModelScope.launch {
             try {
                 val result = inferenceUseCase.run(
                     task = request.selectedTask,
                     ocrLanguage = request.ocrLanguage,
                     imageUri = imageUri,
                 )
-                mutableUiState.value = VisionUiReducer.runSucceeded(mutableUiState.value, result)
+                if (isActiveRequest(requestId)) {
+                    mutableUiState.value = VisionUiReducer.runSucceeded(mutableUiState.value, result)
+                }
             } catch (exception: VisionInferenceException) {
-                mutableUiState.value = VisionUiReducer.runFailed(
-                    mutableUiState.value,
-                    "${exception.code}: ${exception.message}",
-                )
+                if (isActiveRequest(requestId)) {
+                    mutableUiState.value = VisionUiReducer.runFailed(
+                        mutableUiState.value,
+                        "${exception.code}: ${exception.message}",
+                    )
+                }
             } catch (exception: Exception) {
-                mutableUiState.value = VisionUiReducer.runFailed(
-                    mutableUiState.value,
-                    "${VisionErrorCode.INFERENCE_FAILED}: ${exception.message ?: "未知错误"}",
-                )
+                if (isActiveRequest(requestId)) {
+                    mutableUiState.value = VisionUiReducer.runFailed(
+                        mutableUiState.value,
+                        "${VisionErrorCode.INFERENCE_FAILED}: ${exception.message ?: "未知错误"}",
+                    )
+                }
             }
         }
+    }
+
+    private fun invalidateActiveInference() {
+        activeRequestId++
+        inferenceJob?.cancel()
+        inferenceJob = null
+    }
+
+    private fun isActiveRequest(requestId: Long): Boolean = requestId == activeRequestId
+
+    override fun onCleared() {
+        invalidateActiveInference()
+        super.onCleared()
     }
 
     companion object {
@@ -66,7 +100,7 @@ class VisionViewModel(
                 require(modelClass.isAssignableFrom(VisionViewModel::class.java))
                 return VisionViewModel(
                     inferenceUseCase = LocalVisionInferenceUseCase(context.applicationContext),
-                    initialMessage = NativeBridge.runtimeInfo(),
+                    initialMessage = NativeBridge.bridgeInfo(),
                 ) as T
             }
         }

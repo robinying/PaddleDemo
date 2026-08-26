@@ -58,10 +58,11 @@ object VisionUiReducer {
         )
         VisionIntent.PickImageClicked -> state
         is VisionIntent.ImageSelected -> if (intent.uri == null) {
-            state.copy(message = "未选择图片")
+            state.copy(isRunning = false, message = "未选择图片")
         } else {
             state.copy(
                 imageUri = intent.uri,
+                isRunning = false,
                 result = null,
                 message = "已选择图片，可运行${state.selectedTask.title}",
             )

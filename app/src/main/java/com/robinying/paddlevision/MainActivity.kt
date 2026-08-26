@@ -105,9 +105,17 @@ private fun VisionScreen(
     ) {
         Spacer(Modifier.height(8.dp))
         Header()
-        TaskSelector(selected = state.selectedTask, onIntent = onIntent)
+        TaskSelector(
+            selected = state.selectedTask,
+            enabled = !state.isRunning,
+            onIntent = onIntent,
+        )
         if (state.selectedTask == VisionTask.OCR) {
-            LanguageSelector(selected = state.ocrLanguage, onIntent = onIntent)
+            LanguageSelector(
+                selected = state.ocrLanguage,
+                enabled = !state.isRunning,
+                onIntent = onIntent,
+            )
         }
         ImageWorkspace(state = state)
         ActionArea(state = state, onIntent = onIntent)
@@ -147,7 +155,11 @@ private fun Header() {
 }
 
 @Composable
-private fun TaskSelector(selected: VisionTask, onIntent: (VisionIntent) -> Unit) {
+private fun TaskSelector(
+    selected: VisionTask,
+    enabled: Boolean,
+    onIntent: (VisionIntent) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel("分析模式")
         Row(
@@ -159,6 +171,7 @@ private fun TaskSelector(selected: VisionTask, onIntent: (VisionIntent) -> Unit)
             VisionTask.entries.forEach { task ->
                 val isSelected = task == selected
                 OutlinedButton(
+                    enabled = enabled,
                     onClick = { onIntent(VisionIntent.SelectTask(task)) },
                     modifier = Modifier.semantics { contentDescription = "选择${task.title}" },
                     shape = RoundedCornerShape(14.dp),
@@ -185,7 +198,11 @@ private fun TaskSelector(selected: VisionTask, onIntent: (VisionIntent) -> Unit)
 }
 
 @Composable
-private fun LanguageSelector(selected: OcrLanguage, onIntent: (VisionIntent) -> Unit) {
+private fun LanguageSelector(
+    selected: OcrLanguage,
+    enabled: Boolean,
+    onIntent: (VisionIntent) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel("识别语言")
         Row(
@@ -195,6 +212,7 @@ private fun LanguageSelector(selected: OcrLanguage, onIntent: (VisionIntent) -> 
             OcrLanguage.entries.forEach { language ->
                 val selectedLanguage = language == selected
                 OutlinedButton(
+                    enabled = enabled,
                     onClick = { onIntent(VisionIntent.SelectOcrLanguage(language)) },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -287,6 +305,7 @@ private fun RunningWorkspace(task: VisionTask) {
 private fun ActionArea(state: VisionUiState, onIntent: (VisionIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(
+            enabled = !state.isRunning,
             onClick = { onIntent(VisionIntent.PickImageClicked) },
             modifier = Modifier
                 .fillMaxWidth()

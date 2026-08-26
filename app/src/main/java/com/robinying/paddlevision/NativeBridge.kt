@@ -1,17 +1,10 @@
 package com.robinying.paddlevision
 
-import java.io.File
-
-/**
- * Loads the small project-native bridge. Paddle Lite inference itself uses the
- * matching v2.10-rc Java/JNI runtime bundled in `PaddlePredictor.jar`.
- */
+/** Loads the project-native bridge. Paddle Lite is verified by the predictor smoke test. */
 object NativeBridge {
     init {
         System.loadLibrary("paddle_vision")
     }
 
-    external fun runtimeInfo(): String
-
-    external fun isRuntimeAvailable(): Boolean
+    external fun bridgeInfo(): String
 }

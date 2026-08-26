@@ -2,13 +2,19 @@
 
 This project packages Paddle Lite **v2.10-rc** for `arm64-v8a`.
 
-The native headers, `libpaddle_light_api_shared.so`, `libc++_shared.so`, OpenCV library, and all optimized `.nb` models must be obtained together by running:
+The Java/JNI runtime, `libc++_shared.so`, OpenCV library, and all optimized `.nb` models must be obtained together by running:
 
 ```bash
 ./scripts/fetch_paddle_assets.sh
 ```
 
-The script writes `third_party/paddle-assets.sha256`, which is the deployment manifest for every packaged native library, model, dictionary and sample. Do not replace individual models or native libraries manually.
+The script generates `third_party/paddle-assets.sha256` using repository-relative paths and validates the generated manifest before returning. Revalidate the packaged dependency set from the repository root with:
+
+```bash
+shasum -a 256 -c third_party/paddle-assets.sha256
+```
+
+Do not replace individual models or native libraries manually. The application verifies required model and dictionary hashes before it reuses private installed copies.
 
 ## Source artifacts
 
@@ -24,7 +30,7 @@ The v2.14-rc runtime metadata previously placed in this repository must not be m
 app/src/main/jniLibs/arm64-v8a/
   libc++_shared.so
   libopencv_java4.so
-  libpaddle_light_api_shared.so
+  libpaddle_lite_jni.so
 app/src/main/assets/models/
   ocr/*.nb
   object/ssd_mobilenet_v1_pascalvoc_for_cpu/model.nb

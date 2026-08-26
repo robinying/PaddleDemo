@@ -1,6 +1,7 @@
 package com.robinying.paddlevision
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -34,6 +35,16 @@ class VisionUiReducerTest {
         assertNull(result.result)
         assertEquals("已选择图片，可运行物体检测", result.message)
         assertEquals(true, result.canRun)
+    }
+
+    @Test
+    fun selectingImageStopsAnyInvalidatedInference() {
+        val current = VisionUiState(isRunning = true)
+
+        val result = VisionUiReducer.reduce(current, VisionIntent.ImageSelected("content://picked"))
+
+        assertFalse(result.isRunning)
+        assertEquals("content://picked", result.imageUri)
     }
 
     @Test
