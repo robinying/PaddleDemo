@@ -72,6 +72,8 @@ private val Amber = Color(0xFFE59F23)
 private val Slate = Color(0xFF64748B)
 private val Line = Color(0xFFD7E0E6)
 
+private data class ResultEntry(val label: String, val confidence: Float)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -437,8 +439,24 @@ private fun ResultPanel(state: VisionUiState) {
             SectionLabel(stringResource(R.string.analysis_result))
             state.result?.let { result ->
                 ResultMetrics(result)
-                if (result.task == VisionTask.OCR) {
-                    OcrTextResults(result.textBlocks)
+                when (result.task) {
+                    VisionTask.OCR -> ResultEntries(
+                        heading = stringResource(R.string.recognized_text),
+                        emptyMessage = stringResource(R.string.no_text_recognized),
+                        entries = result.textBlocks.map { ResultEntry(it.text, it.confidence) },
+                    )
+                    VisionTask.OBJECT -> ResultEntries(
+                        heading = stringResource(R.string.detected_object_details),
+                        emptyMessage = stringResource(R.string.no_objects_detected),
+                        entries = result.detections.map { ResultEntry(it.categoryName, it.confidence) },
+                    )
+                    VisionTask.FACE -> ResultEntries(
+                        heading = stringResource(R.string.detected_face_details),
+                        emptyMessage = stringResource(R.string.no_faces_detected),
+                        entries = result.faces.mapIndexed { index, face ->
+                            ResultEntry(stringResource(R.string.face_number, index + 1), face.confidence)
+                        },
+                    )
                 }
             }
             Text(message, color = Ink, fontSize = 15.sp)
@@ -454,13 +472,17 @@ private fun ResultPanel(state: VisionUiState) {
 }
 
 @Composable
-private fun OcrTextResults(textBlocks: List<OcrTextBlock>) {
+private fun ResultEntries(
+    heading: String,
+    emptyMessage: String,
+    entries: List<ResultEntry>,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel(stringResource(R.string.recognized_text))
-        if (textBlocks.isEmpty()) {
-            Text(stringResource(R.string.no_text_recognized), color = Slate, fontSize = 14.sp)
+        SectionLabel(heading)
+        if (entries.isEmpty()) {
+            Text(emptyMessage, color = Slate, fontSize = 14.sp)
         } else {
-            textBlocks.forEach { block ->
+            entries.forEach { entry ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Mineral),
@@ -473,7 +495,7 @@ private fun OcrTextResults(textBlocks: List<OcrTextBlock>) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = block.text,
+                            text = entry.label,
                             modifier = Modifier.weight(1f),
                             color = Ink,
                             fontSize = 16.sp,
@@ -483,7 +505,7 @@ private fun OcrTextResults(textBlocks: List<OcrTextBlock>) {
                         Text(
                             text = stringResource(
                                 R.string.ocr_confidence,
-                                String.format(Locale.getDefault(), "%.0f%%", block.confidence * 100),
+                                String.format(Locale.getDefault(), "%.0f%%", entry.confidence * 100),
                             ),
                             color = SignalTeal,
                             fontSize = 12.sp,

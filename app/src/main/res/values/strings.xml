@@ -10,4 +10,9 @@
     <string name="recognized_text">识别文本</string>
     <string name="no_text_recognized">未识别到可读取的文字</string>
     <string name="ocr_confidence">置信度 %1$s</string>
+    <string name="detected_object_details">检测目标</string>
+    <string name="no_objects_detected">未检测到目标</string>
+    <string name="detected_face_details">检测人脸</string>
+    <string name="no_faces_detected">未检测到人脸</string>
+    <string name="face_number">人脸 %1$d</string>
 </resources>
