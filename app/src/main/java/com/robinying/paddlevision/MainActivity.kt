@@ -1,7 +1,9 @@
 package com.robinying.paddlevision
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -18,8 +20,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,10 +39,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val Ink = Color(0xFF101B2D)
 private val Mineral = Color(0xFFF2F5F7)
@@ -63,6 +74,7 @@ private val Line = Color(0xFFD7E0E6)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             MaterialTheme {
                 Surface(color = Mineral) {
@@ -100,6 +112,8 @@ private fun VisionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 20.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -178,6 +192,7 @@ private fun TaskSelector(
                     modifier = Modifier.semantics { contentDescription = selectTaskDescription },
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isSelected) SignalTeal else Paper,
                         contentColor = if (isSelected) Paper else Ink,
                     ),
                     border = androidx.compose.foundation.BorderStroke(
@@ -187,9 +202,6 @@ private fun TaskSelector(
                 ) {
                     Text(
                         text = stringResource(task.titleRes),
-                        modifier = if (isSelected) Modifier
-                            .background(SignalTeal)
-                            .padding(horizontal = 2.dp) else Modifier,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -218,6 +230,7 @@ private fun LanguageSelector(
                     onClick = { onIntent(VisionIntent.SelectOcrLanguage(language)) },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (selectedLanguage) TealMist else Paper,
                         contentColor = if (selectedLanguage) SignalTeal else Slate,
                     ),
                 ) {
@@ -244,16 +257,17 @@ private fun ImageWorkspace(state: VisionUiState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
-                .padding(16.dp)
+                .padding(12.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .border(2.dp, taskColor, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            ViewfinderCorners(taskColor)
             when {
-                state.isRunning -> RunningWorkspace(state.selectedTask)
                 state.imageUri == null -> EmptyWorkspace(state.selectedTask)
-                else -> SelectedWorkspace(state.selectedTask)
+                state.isRunning -> RunningWorkspace(state.selectedTask, state.imageUri)
+                else -> SelectedWorkspace(state.selectedTask, state.imageUri)
             }
+            ViewfinderCorners(taskColor)
         }
     }
 }
@@ -286,20 +300,84 @@ private fun EmptyWorkspace(task: VisionTask) {
 }
 
 @Composable
-private fun SelectedWorkspace(task: VisionTask) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.ready), color = SignalTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.image_ready, stringResource(task.titleRes)), color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.no_image_upload), color = Slate, fontSize = 13.sp)
+private fun BoxScope.SelectedWorkspace(task: VisionTask, imageUri: String) {
+    ImagePreview(imageUri = imageUri, task = task)
+    WorkspaceCaption(
+        modifier = Modifier.align(Alignment.BottomStart),
+        title = stringResource(R.string.image_ready, stringResource(task.titleRes)),
+        detail = stringResource(R.string.no_image_upload),
+        badge = stringResource(R.string.ready),
+        badgeColor = SignalTeal,
+    )
+}
+
+@Composable
+private fun BoxScope.RunningWorkspace(task: VisionTask, imageUri: String) {
+    ImagePreview(imageUri = imageUri, task = task, dimmed = true)
+    Column(
+        modifier = Modifier
+            .align(Alignment.Center)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Paper.copy(alpha = 0.94f))
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CircularProgressIndicator(color = Amber, modifier = Modifier.size(38.dp))
+        Text(stringResource(R.string.analyzing_task, stringResource(task.titleRes)), color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.on_device_model), color = Slate, fontSize = 13.sp)
     }
 }
 
 @Composable
-private fun RunningWorkspace(task: VisionTask) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CircularProgressIndicator(color = Amber, modifier = Modifier.size(38.dp))
-        Text(stringResource(R.string.analyzing_task, stringResource(task.titleRes)), color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.on_device_model), color = Slate, fontSize = 13.sp)
+private fun ImagePreview(imageUri: String, task: VisionTask, dimmed: Boolean = false) {
+    val context = LocalContext.current
+    val preview by produceState<ImageBitmap?>(initialValue = null, imageUri) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val source = android.graphics.ImageDecoder.createSource(context.contentResolver, Uri.parse(imageUri))
+                android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val largestSide = maxOf(info.size.width, info.size.height)
+                    if (largestSide > 1200) {
+                        val scale = 1200f / largestSide
+                        decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
+                    }
+                }.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    if (preview != null) {
+        androidx.compose.foundation.Image(
+            bitmap = preview!!,
+            contentDescription = stringResource(R.string.selected_image_preview, stringResource(task.titleRes)),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (dimmed) Box(Modifier.fillMaxSize().background(Ink.copy(alpha = 0.32f)))
+    } else {
+        Box(Modifier.fillMaxSize().background(TealMist))
+    }
+}
+
+@Composable
+private fun WorkspaceCaption(
+    modifier: Modifier = Modifier,
+    title: String,
+    detail: String,
+    badge: String,
+    badgeColor: Color,
+) {
+    Column(
+        modifier = modifier
+            .padding(10.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Paper.copy(alpha = 0.94f))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(badge, color = badgeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(detail, color = Slate, fontSize = 11.sp)
     }
 }
 
