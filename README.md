@@ -11,6 +11,8 @@
 - **人脸检测**：输出人脸边界框和置信度，不生成或保存身份数据。
 - **本地离线推理**：模型和推理均在设备端完成。
 - **系统 Photo Picker**：选择单张图片，不申请宽泛媒体读取权限。
+- **图片预览与状态反馈**：选图后在工作区显示本地缩略图；推理期间保留预览并叠加进度状态，结果区展示数量与端到端耗时。
+- **自适应 Compose 界面**：分析模式与语言选择有明确选中态，内容自动避开状态栏和系统导航栏。
 - **MVVM + UDF**：Compose UI 通过 `VisionIntent` 驱动 `VisionViewModel`，由 `StateFlow<VisionUiState>` 渲染；推理请求具有唯一标识，切换任务、语言或图片会取消并失效旧请求，避免过期结果覆盖当前状态。
 
 ## 架构
@@ -32,7 +34,7 @@ VisionViewModel
 
 | 位置 | 职责 |
 | --- | --- |
-| `MainActivity.kt` | Compose 宿主；渲染 State；分发 Intent；响应 Photo Picker Effect。 |
+| `MainActivity.kt` | Compose 宿主；渲染状态、图片预览和结果摘要；分发 Intent；响应 Photo Picker Effect。 |
 | `VisionViewModel.kt` | 状态唯一所有者；取消失效推理请求；处理用户 Intent、推理生命周期与一次性 Effect。 |
 | `VisionUiState.kt` | `VisionUiState`、`VisionIntent`、`VisionEffect` 与纯 `VisionUiReducer`。 |
 | `VisionInferenceUseCase.kt` | 编排图片解码、模型准备、Paddle 推理与 Bitmap 释放。 |
@@ -145,7 +147,7 @@ adb shell monkey -p com.robinying.paddlevision 1
 
 - OCR 当前仅打包中文模型；选择其他语言时会给出明确错误提示。
 - OCR 仅对检测概率图的连通区域进行轴对齐裁剪；复杂多区域版面、旋转文本、透视矫正和完整语言扩展仍有待后续实现。
-- UI 当前展示任务状态和结果摘要；图片结果框的覆盖层渲染是后续增强项。
+- UI 会展示原图预览、任务状态和结果摘要；图片结果框（OCR 文本块、目标/人脸边界框）的覆盖层渲染仍是后续增强项。
 - 首发 ABI 仅为 `arm64-v8a`。
 
 ## 第三方声明
