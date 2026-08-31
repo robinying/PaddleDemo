@@ -61,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 private val Ink = Color(0xFF101B2D)
 private val Mineral = Color(0xFFF2F5F7)
@@ -434,7 +435,12 @@ private fun ResultPanel(state: VisionUiState) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(stringResource(R.string.analysis_result))
-            state.result?.let { result -> ResultMetrics(result) }
+            state.result?.let { result ->
+                ResultMetrics(result)
+                if (result.task == VisionTask.OCR) {
+                    OcrTextResults(result.textBlocks)
+                }
+            }
             Text(message, color = Ink, fontSize = 15.sp)
             if (state.result?.task == VisionTask.FACE || state.selectedTask == VisionTask.FACE) {
                 Text(
@@ -442,6 +448,49 @@ private fun ResultPanel(state: VisionUiState) {
                     color = Slate,
                     fontSize = 12.sp,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OcrTextResults(textBlocks: List<OcrTextBlock>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel(stringResource(R.string.recognized_text))
+        if (textBlocks.isEmpty()) {
+            Text(stringResource(R.string.no_text_recognized), color = Slate, fontSize = 14.sp)
+        } else {
+            textBlocks.forEach { block ->
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Mineral),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = block.text,
+                            modifier = Modifier.weight(1f),
+                            color = Ink,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.ocr_confidence,
+                                String.format(Locale.getDefault(), "%.0f%%", block.confidence * 100),
+                            ),
+                            color = SignalTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
         }
     }

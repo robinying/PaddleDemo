@@ -7,4 +7,7 @@
     <string name="message_choose_capability">请选择能力并从相册选择图片</string><string name="message_face_privacy">人脸检测仅显示位置，不识别身份</string><string name="message_task_selected">已选择能力，请从相册选择图片</string><string name="message_language_selected">已选择 OCR 语言，请重新选择图片</string><string name="message_no_image_selected">未选择图片</string><string name="message_image_selected">已选择图片，可以运行</string><string name="message_running">正在运行…</string><string name="message_pick_image">请选择一张图片</string><string name="message_inference_failed">推理失败：%1$s</string>
     <string name="result_ocr_summary">识别到 %1$d 个文本块，耗时 %2$d ms</string><string name="result_object_summary">检测到 %1$d 个目标，耗时 %2$d ms</string><string name="result_face_summary">检测到 %1$d 张人脸，耗时 %2$d ms</string>
     <string name="selected_image_preview">已选择的 %1$s 图片预览</string>
+    <string name="recognized_text">识别文本</string>
+    <string name="no_text_recognized">未识别到可读取的文字</string>
+    <string name="ocr_confidence">置信度 %1$s</string>
 </resources>
