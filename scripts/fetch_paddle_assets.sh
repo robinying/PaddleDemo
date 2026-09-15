@@ -4,16 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CACHE_DIR="${ROOT_DIR}/.asset-cache"
 ASSET_DIR="${ROOT_DIR}/app/src/main/assets"
+TEST_ASSET_DIR="${ROOT_DIR}/app/src/androidTest/assets"
 HASH_MANIFEST="${ROOT_DIR}/third_party/paddle-assets.sha256"
 NATIVE_DIR="${ROOT_DIR}/app/src/main"
 PADDLE_DIR="${NATIVE_DIR}/paddle"
 JNICALL_DIR="${NATIVE_DIR}/jniLibs/arm64-v8a"
-OPENCV_DIR="${NATIVE_DIR}/opencv"
 
 PADDLE_URL="https://paddlelite-demo.bj.bcebos.com/libs/android/paddle_lite_libs_v2_10_rc.tar.gz"
-OPENCV_URL="https://paddlelite-demo.bj.bcebos.com/libs/android/opencv-4.2.0-android-sdk.tar.gz"
 OCR_DET_URL="https://paddlelite-demo.bj.bcebos.com/demo/ocr/models/ch_ppocr_mobile_v2.0_det_slim_opt_for_cpu_v2_10_rc.tar.gz"
-OCR_CLS_URL="https://paddlelite-demo.bj.bcebos.com/demo/ocr/models/ch_ppocr_mobile_v2.0_cls_slim_opt_for_cpu_v2_10_rc.tar.gz"
 OCR_REC_URL="https://paddlelite-demo.bj.bcebos.com/demo/ocr/models/ch_ppocr_mobile_v2.0_rec_slim_opt_for_cpu_v2_10_rc.tar.gz"
 OCR_LABELS_URL="https://paddlelite-demo.bj.bcebos.com/demo/ocr/labels/labels.tar.gz"
 OCR_IMAGES_URL="https://paddlelite-demo.bj.bcebos.com/demo/ocr/images/images.tar.gz"
@@ -22,7 +20,7 @@ OBJECT_IMAGE_URL="https://raw.githubusercontent.com/PaddlePaddle/Paddle-Lite-Dem
 FACE_URL="https://paddlelite-demo.bj.bcebos.com/models/facedetection_fp32_240_430_for_cpu_v2_10_rc.tar.gz"
 FACE_IMAGE_URL="https://raw.githubusercontent.com/PaddlePaddle/Paddle-Lite-Demo/develop/face_detection/assets/images/face.jpg"
 
-mkdir -p "${CACHE_DIR}" "${ASSET_DIR}" "${PADDLE_DIR}" "${JNICALL_DIR}" "${OPENCV_DIR}"
+mkdir -p "${CACHE_DIR}" "${ASSET_DIR}" "${TEST_ASSET_DIR}" "${PADDLE_DIR}" "${JNICALL_DIR}"
 
 fetch() {
     local name="$1"
@@ -60,7 +58,7 @@ write_hash_manifest() {
             printf '# Validate from the repository root with: shasum -a 256 -c third_party/paddle-assets.sha256\n'
             while IFS= read -r -d '' path; do
                 shasum -a 256 "${path}" | sed "s#  ${ROOT_DIR}/#  #"
-            done < <(find "${JNICALL_DIR}" "${ASSET_DIR}" -type f -print0 | sort -z)
+            done < <(find "${JNICALL_DIR}" "${ASSET_DIR}" "${TEST_ASSET_DIR}" -type f -print0 | sort -z)
         } > "${HASH_MANIFEST}"
     )
 }
@@ -83,10 +81,11 @@ extract_one() {
     rm -rf "${staging}"
 }
 
+# OpenCV and the OCR direction-classification model are deliberately not fetched: the app
+# implements OCR post-processing in Kotlin and never loads a direction classifier, so both
+# would only add dead weight to the APK.
 fetch paddle-lite-v2.10-rc.tar.gz "${PADDLE_URL}" "8661bc8fb28347a6f8f28b4b9636a52731a92d3098c6849bf783d562a7ddc05a"
-fetch opencv-4.2.0-android-sdk.tar.gz "${OPENCV_URL}" "8b822cfd056f535f44434410dcfb314ab14e90cd5b7d65c0f0fa34beeab73402"
 fetch ocr-det-v2.10.tar.gz "${OCR_DET_URL}" "9e14cc8d017f523c2168dabd4983cb4f8b64be2fa67c3b40faf3cef4ca38d712"
-fetch ocr-cls-v2.10.tar.gz "${OCR_CLS_URL}" "f4dcaa594abfda46c244e2006961dd33a2948e3ba6f6b8b5dc1f5057ac7968c8"
 fetch ocr-rec-v2.10.tar.gz "${OCR_REC_URL}" "3ec7b34744a948f41012c1a43cb76f86fa6343b233c77ff9151781ce3220768d"
 fetch ocr-labels.tar.gz "${OCR_LABELS_URL}" "deaf9d44b671ee4edb3a2e1747844624e211d1a24ef641e8336147fa046edb8a"
 fetch ocr-images.tar.gz "${OCR_IMAGES_URL}" "a2ede66c82c9e6a9d67c6b84e52b5cc7745b5f6648b3dc5ff19b84d6db861064"
@@ -95,40 +94,42 @@ fetch dog.jpg "${OBJECT_IMAGE_URL}" "f7e23bfe6bf8abbacd0d2388acde5a40772007d6457
 fetch face-detection-v2.10.tar.gz "${FACE_URL}" "dc15f4107cd55c8668fc44674ac362b677eb4e53d39119392d28439bbf953e51"
 fetch face.jpg "${FACE_IMAGE_URL}" "0be97bc8cc5b62e308b15c46195e9df4b503415ea5384f938f8a282dd06bac22"
 
-rm -rf "${PADDLE_DIR}" "${OPENCV_DIR}"
-mkdir -p "${PADDLE_DIR}" "${OPENCV_DIR}"
+rm -rf "${PADDLE_DIR}"
+mkdir -p "${PADDLE_DIR}"
 extract_one "${CACHE_DIR}/paddle-lite-v2.10-rc.tar.gz" "${PADDLE_DIR}"
-extract_one "${CACHE_DIR}/opencv-4.2.0-android-sdk.tar.gz" "${OPENCV_DIR}"
 
 require_file "${PADDLE_DIR}/java/libs/arm64-v8a/libpaddle_lite_jni.so"
 require_file "${PADDLE_DIR}/java/libs/arm64-v8a/libc++_shared.so"
-require_file "${OPENCV_DIR}/sdk/native/libs/arm64-v8a/libopencv_java4.so"
 
 rm -f "${JNICALL_DIR}/libpaddle_light_api_shared.so" "${JNICALL_DIR}/libc++_shared.so"
 cp "${PADDLE_DIR}/java/libs/arm64-v8a/libpaddle_lite_jni.so" "${JNICALL_DIR}/"
 cp "${PADDLE_DIR}/java/libs/arm64-v8a/libc++_shared.so" "${JNICALL_DIR}/"
-cp "${OPENCV_DIR}/sdk/native/libs/arm64-v8a/libopencv_java4.so" "${JNICALL_DIR}/"
 
-rm -rf "${ASSET_DIR}/models" "${ASSET_DIR}/dictionaries" "${ASSET_DIR}/samples"
-mkdir -p "${ASSET_DIR}/models/ocr" "${ASSET_DIR}/models/object" "${ASSET_DIR}/models/face" "${ASSET_DIR}/dictionaries" "${ASSET_DIR}/samples"
+rm -rf "${ASSET_DIR}/models" "${ASSET_DIR}/dictionaries" "${TEST_ASSET_DIR}/samples"
+mkdir -p "${ASSET_DIR}/models/ocr" "${ASSET_DIR}/models/object" "${ASSET_DIR}/models/face" "${ASSET_DIR}/dictionaries" "${TEST_ASSET_DIR}/samples"
 
 extract_one "${CACHE_DIR}/ocr-det-v2.10.tar.gz" "${ASSET_DIR}/models/ocr"
-extract_one "${CACHE_DIR}/ocr-cls-v2.10.tar.gz" "${ASSET_DIR}/models/ocr"
 extract_one "${CACHE_DIR}/ocr-rec-v2.10.tar.gz" "${ASSET_DIR}/models/ocr"
 extract_one "${CACHE_DIR}/ocr-labels.tar.gz" "${ASSET_DIR}/dictionaries"
-extract_one "${CACHE_DIR}/ocr-images.tar.gz" "${ASSET_DIR}/samples/ocr"
+extract_one "${CACHE_DIR}/ocr-images.tar.gz" "${TEST_ASSET_DIR}/samples/ocr"
 extract_one "${CACHE_DIR}/ssd-mobilenet-v1-pascalvoc-v2.10.tar.gz" "${ASSET_DIR}/models/object"
 extract_one "${CACHE_DIR}/face-detection-v2.10.tar.gz" "${ASSET_DIR}/models/face"
-cp "${CACHE_DIR}/dog.jpg" "${ASSET_DIR}/samples/object_dog.jpg"
-cp "${CACHE_DIR}/face.jpg" "${ASSET_DIR}/samples/face.jpg"
+cp "${CACHE_DIR}/dog.jpg" "${TEST_ASSET_DIR}/samples/object_dog.jpg"
+cp "${CACHE_DIR}/face.jpg" "${TEST_ASSET_DIR}/samples/face.jpg"
+
+# The upstream labels archive also ships the ocrv5 dictionary. The packaged recognizer is the
+# v2.0 slim model, which is decoded with ppocr_keys_v1.txt only, so the ocrv5 copy is dropped
+# rather than shipped as an unreferenced 74 KB asset.
+rm -f "${ASSET_DIR}/dictionaries/ppocr_keys_ocrv5.txt"
 
 require_file "${ASSET_DIR}/models/ocr/ch_ppocr_mobile_v2.0_det_slim_opt.nb"
-require_file "${ASSET_DIR}/models/ocr/ch_ppocr_mobile_v2.0_cls_slim_opt.nb"
 require_file "${ASSET_DIR}/models/ocr/ch_ppocr_mobile_v2.0_rec_slim_opt.nb"
+require_file "${ASSET_DIR}/dictionaries/ppocr_keys_v1.txt"
 require_file "${ASSET_DIR}/models/object/ssd_mobilenet_v1_pascalvoc_for_cpu/model.nb"
 require_file "${ASSET_DIR}/models/face/model.nb"
-require_file "${ASSET_DIR}/samples/object_dog.jpg"
-require_file "${ASSET_DIR}/samples/face.jpg"
+require_file "${TEST_ASSET_DIR}/samples/object_dog.jpg"
+require_file "${TEST_ASSET_DIR}/samples/face.jpg"
+require_file "${TEST_ASSET_DIR}/samples/ocr/test.jpg"
 write_hash_manifest
 verify_hash_manifest
 printf 'Paddle assets are ready and verified. Manifest: third_party/paddle-assets.sha256\n'

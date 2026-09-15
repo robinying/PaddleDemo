@@ -1,6 +1,7 @@
 package com.robinying.paddlevision
 
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
 import com.baidu.paddle.lite.MobileConfig
 import com.baidu.paddle.lite.PaddlePredictor
 import com.baidu.paddle.lite.PowerMode
@@ -19,8 +20,14 @@ import kotlin.system.measureTimeMillis
  * The official v2.10 C++ runtime has malformed local ELF symbols that modern NDK linkers
  * reject. The bundled Java API uses the same versioned native runtime without that linker
  * integration, while Kotlin owns model contracts and all privacy-sensitive result handling.
+ *
+ * Predictors are cached per model path because parsing a Paddle Lite model from disk is a
+ * per-run fixed cost. `PaddlePredictor` is not thread safe, so callers must serialize
+ * [run] — see [InferenceGate].
  */
 class PaddleLiteEngine {
+    private val predictorsByPath = mutableMapOf<String, PaddlePredictor>()
+
     fun run(
         task: VisionTask,
         bitmap: Bitmap,
@@ -40,11 +47,16 @@ class PaddleLiteEngine {
         modelDirectory: File,
     ): VisionInferenceResult {
         val contract = ModelContract.forTask(task, modelDirectory)
-        val predictor = createPredictor(contract.modelFile)
+        val predictor = predictorFor(contract.modelFile)
         val input = bitmap.toNchw(contract.inputWidth, contract.inputHeight, contract.mean, contract.standardDeviation)
         val elapsedMillis = measureTimeMillis {
             predictor.setInput(input, contract.inputWidth, contract.inputHeight)
-            check(predictor.run()) { "Paddle Lite 推理失败" }
+            if (!predictor.run()) {
+                throw VisionInferenceException(
+                    VisionErrorCode.INFERENCE_FAILED,
+                    UiText(R.string.error_inference_failed),
+                )
+            }
         }
         val firstOutput = predictor.getOutput(0).floatDataOrThrow()
         val firstShape = predictor.getOutput(0).shape()
@@ -63,21 +75,19 @@ class PaddleLiteEngine {
         modelDirectory: File,
         language: OcrLanguage,
     ): VisionInferenceResult {
-        if (language != OcrLanguage.CHINESE) {
-            throw VisionInferenceException(
-                VisionErrorCode.UNSUPPORTED_TASK,
-                "当前打包的 OCR 模型只支持中文，请选择中文 OCR",
-            )
-        }
-        val detectorFile = File(modelDirectory, OCR_DETECTOR_MODEL)
-        val recognizerFile = File(modelDirectory, OCR_RECOGNIZER_MODEL)
-        val dictionaryFile = File(modelDirectory, OCR_DICTIONARY)
+        requireSupportedOcrLanguage(language)
+        val detectorFile = File(modelDirectory, OCR_DETECTOR_ASSET)
+        val recognizerFile = File(modelDirectory, OCR_RECOGNIZER_ASSET)
+        val dictionaryFile = File(modelDirectory, OCR_DICTIONARY_ASSET)
         if (!dictionaryFile.isFile) {
-            throw VisionInferenceException(VisionErrorCode.ASSET_MISSING, "OCR 字典未安装")
+            throw VisionInferenceException(
+                VisionErrorCode.ASSET_MISSING,
+                UiText(R.string.error_ocr_dictionary_missing),
+            )
         }
 
         val detectorSize = calculateOcrDetectorSize(bitmap.width, bitmap.height)
-        val detector = createPredictor(detectorFile)
+        val detector = predictorFor(detectorFile)
         val detectorInput = bitmap.toNchw(
             detectorSize.width,
             detectorSize.height,
@@ -88,7 +98,12 @@ class PaddleLiteEngine {
         var detectorShape: LongArray
         var elapsedMillis = measureTimeMillis {
             detector.setInput(detectorInput, detectorSize.width, detectorSize.height)
-            check(detector.run()) { "OCR 文本检测推理失败" }
+            if (!detector.run()) {
+                throw VisionInferenceException(
+                    VisionErrorCode.INFERENCE_FAILED,
+                    UiText(R.string.error_ocr_detection_failed),
+                )
+            }
             detectorOutput = detector.getOutput(0).floatDataOrThrow()
             detectorShape = detector.getOutput(0).shape()
         }
@@ -105,7 +120,7 @@ class PaddleLiteEngine {
         }
 
         val dictionary = loadOcrDictionary(dictionaryFile)
-        val recognizer = createPredictor(recognizerFile)
+        val recognizer = predictorFor(recognizerFile)
         val blocks = regions.take(MAX_OCR_REGIONS).mapNotNull { region ->
             val recognition = recognizeRegion(bitmap, region, recognizer, dictionary)
             elapsedMillis += recognition.elapsedMillis
@@ -133,7 +148,12 @@ class PaddleLiteEngine {
             var shape: LongArray
             val elapsedMillis = measureTimeMillis {
                 predictor.setInput(input, inputWidth, OCR_RECOGNITION_HEIGHT)
-                check(predictor.run()) { "OCR 文本识别推理失败" }
+                if (!predictor.run()) {
+                    throw VisionInferenceException(
+                        VisionErrorCode.INFERENCE_FAILED,
+                        UiText(R.string.error_ocr_recognition_failed),
+                    )
+                }
                 values = predictor.getOutput(0).floatDataOrThrow()
                 shape = predictor.getOutput(0).shape()
             }
@@ -146,10 +166,24 @@ class PaddleLiteEngine {
         }
     }
 
-    private fun createPredictor(modelFile: File): PaddlePredictor {
+    /**
+     * Returns a predictor for [modelFile], parsing it only the first time this engine
+     * instance sees that path. The engine is not thread safe; [InferenceGate] guarantees
+     * callers serialize access.
+     */
+    private fun predictorFor(modelFile: File): PaddlePredictor {
         if (!modelFile.isFile || modelFile.length() == 0L) {
-            throw VisionInferenceException(VisionErrorCode.ASSET_MISSING, "模型文件未安装：${modelFile.name}")
+            throw VisionInferenceException(
+                VisionErrorCode.ASSET_MISSING,
+                UiText(R.string.error_model_file_missing, listOf(modelFile.name)),
+            )
         }
+        return predictorsByPath[modelFile.absolutePath] ?: createPredictor(modelFile).also { created ->
+            predictorsByPath[modelFile.absolutePath] = created
+        }
+    }
+
+    private fun createPredictor(modelFile: File): PaddlePredictor {
         return try {
             val config = MobileConfig().apply {
                 setModelFromFile(modelFile.absolutePath)
@@ -157,25 +191,43 @@ class PaddleLiteEngine {
                 setPowerMode(PowerMode.LITE_POWER_HIGH)
             }
             PaddlePredictor.createPaddlePredictor(config)
-                ?: throw VisionInferenceException(VisionErrorCode.MODEL_INITIALIZATION_FAILED, "无法加载模型")
+                ?: throw VisionInferenceException(
+                    VisionErrorCode.MODEL_INITIALIZATION_FAILED,
+                    UiText(R.string.error_model_load_failed, listOf(UiText(R.string.error_unknown))),
+                )
         } catch (exception: VisionInferenceException) {
             throw exception
         } catch (exception: Exception) {
             throw VisionInferenceException(
                 VisionErrorCode.MODEL_INITIALIZATION_FAILED,
-                "模型加载失败：${exception.message ?: "未知错误"}",
+                UiText(
+                    R.string.error_model_load_failed,
+                    listOf(exception.message ?: UiText(R.string.error_unknown)),
+                ),
+                exception,
             )
         }
     }
 
     private companion object {
-        const val OCR_DETECTOR_MODEL = "models/ocr/ch_ppocr_mobile_v2.0_det_slim_opt.nb"
-        const val OCR_RECOGNIZER_MODEL = "models/ocr/ch_ppocr_mobile_v2.0_rec_slim_opt.nb"
-        const val OCR_DICTIONARY = "dictionaries/ppocr_keys_v1.txt"
         const val OCR_RECOGNITION_HEIGHT = 32
         const val MAX_OCR_REGIONS = 20
         val OCR_MEAN = floatArrayOf(0.5f, 0.5f, 0.5f)
         val OCR_STANDARD_DEVIATION = floatArrayOf(0.5f, 0.5f, 0.5f)
+    }
+}
+
+/**
+ * Rejects OCR languages whose model is not bundled. The selector already hides them, so
+ * this guard is defence in depth: any other caller still gets an actionable message
+ * instead of a failed inference.
+ */
+internal fun requireSupportedOcrLanguage(language: OcrLanguage) {
+    if (!language.isPackaged) {
+        throw VisionInferenceException(
+            VisionErrorCode.UNSUPPORTED_TASK,
+            UiText(R.string.error_ocr_language_unsupported),
+        )
     }
 }
 
@@ -207,7 +259,7 @@ private data class ModelContract(
         if (values.size < 6 || values.size % 6 != 0) {
             throw VisionInferenceException(
                 VisionErrorCode.INFERENCE_FAILED,
-                "模型输出格式不符合检测结果契约：${shape.contentToString()}",
+                UiText(R.string.error_object_output_contract, listOf(shape.contentToString())),
             )
         }
         val selected = values.asListOfDetectionCandidates(sourceSize).nonMaximumSuppression()
@@ -216,7 +268,7 @@ private data class ModelContract(
             imageSize = sourceSize,
             elapsedMillis = elapsedMillis,
             detections = selected.map { candidate ->
-                DetectedObject(PascalVocLabels.nameFor(candidate.categoryId), candidate.confidence, candidate.boundingBox)
+                DetectedObject(candidate.categoryId, candidate.confidence, candidate.boundingBox)
             },
         )
     }
@@ -224,11 +276,11 @@ private data class ModelContract(
     companion object {
         fun forTask(task: VisionTask, modelDirectory: File): ModelContract = when (task) {
             VisionTask.OBJECT -> ModelContract(
-                task, File(modelDirectory, "models/object/ssd_mobilenet_v1_pascalvoc_for_cpu/model.nb"),
+                task, File(modelDirectory, OBJECT_MODEL_ASSET),
                 300, 300, floatArrayOf(0.5f, 0.5f, 0.5f), floatArrayOf(0.5f, 0.5f, 0.5f),
             )
             VisionTask.FACE -> ModelContract(
-                task, File(modelDirectory, "models/face/model.nb"),
+                task, File(modelDirectory, FACE_MODEL_ASSET),
                 320, 240, floatArrayOf(0.498f, 0.498f, 0.498f), floatArrayOf(0.502f, 0.502f, 0.502f),
             )
             VisionTask.OCR -> error("OCR uses the dedicated multi-model pipeline")
@@ -241,13 +293,26 @@ private data class RecognizedRegion(val block: OcrTextBlock?, val elapsedMillis:
 
 private fun PaddlePredictor.setInput(values: FloatArray, width: Int, height: Int) {
     val tensor = getInput(0)
-    check(tensor.resize(longArrayOf(1L, 3L, height.toLong(), width.toLong()))) { "无法设置模型输入尺寸" }
-    check(tensor.setData(values)) { "无法写入模型输入" }
+    if (!tensor.resize(longArrayOf(1L, 3L, height.toLong(), width.toLong()))) {
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_model_input_failed),
+        )
+    }
+    if (!tensor.setData(values)) {
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_model_input_failed),
+        )
+    }
 }
 
 private fun decodeFaceCandidates(scores: FloatArray, boxes: FloatArray, sourceSize: ImageSize): List<DetectionCandidate> {
     if (scores.size % 2 != 0 || boxes.size != scores.size * 2) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "人脸模型输出格式不符合 scores/boxes 契约")
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_face_output_contract),
+        )
     }
     return scores.indices.step(2).mapNotNull { scoreIndex ->
         val confidence = scores[scoreIndex + 1]
@@ -280,7 +345,7 @@ private fun List<DetectionCandidate>.nonMaximumSuppression(): List<DetectionCand
     return result.sortedByDescending { it.confidence }
 }
 
-private fun calculateOcrDetectorSize(width: Int, height: Int): ImageSize {
+internal fun calculateOcrDetectorSize(width: Int, height: Int): ImageSize {
     val scale = min(1f, 960f / max(width, height))
     return ImageSize(
         width = max(32, (ceil(width * scale / 32f) * 32).toInt()),
@@ -299,7 +364,10 @@ internal fun extractOcrRegions(
     val minimumComponentPixels = 2
     val minimumRegionSize = 4f
     if (mapWidth <= 0 || mapHeight <= 0 || maxRegions < 0 || values.size < mapWidth * mapHeight) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 检测输出数据无效")
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_ocr_detection_output_invalid),
+        )
     }
     val visited = BooleanArray(mapWidth * mapHeight)
     val regions = mutableListOf<OcrRegionCandidate>()
@@ -311,7 +379,6 @@ internal fun extractOcrRegions(
         queue.addLast(startIndex)
         visited[startIndex] = true
         var pixelCount = 0
-        var scoreSum = 0f
         var minX = mapWidth
         var minY = mapHeight
         var maxX = -1
@@ -321,7 +388,6 @@ internal fun extractOcrRegions(
             val x = index % mapWidth
             val y = index / mapWidth
             pixelCount++
-            scoreSum += values[index]
             minX = min(minX, x)
             minY = min(minY, y)
             maxX = max(maxX, x)
@@ -344,7 +410,9 @@ internal fun extractOcrRegions(
                 }
             }
         }
-        if (pixelCount < minimumComponentPixels || scoreSum / pixelCount < threshold) {
+        // Every pixel in the component already scored >= threshold, so only the pixel-count
+        // and minimum-size guards can reject it.
+        if (pixelCount < minimumComponentPixels) {
             continue
         }
         val scaleX = sourceSize.width.toFloat() / mapWidth
@@ -369,7 +437,10 @@ private data class OcrRegionCandidate(val boundingBox: PixelBox)
 
 private fun FloatArray.toOcrRegions(shape: LongArray, sourceSize: ImageSize): List<PixelBox> {
     if (shape.size < 4) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 检测输出 shape 无效")
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_ocr_detection_output_invalid),
+        )
     }
     val mapHeight = shape[shape.size - 2].toInt()
     val mapWidth = shape.last().toInt()
@@ -384,13 +455,17 @@ private fun Bitmap.crop(region: PixelBox): Bitmap {
     return Bitmap.createBitmap(this, left, top, right - left, bottom - top)
 }
 
-private fun calculateRecognitionWidth(width: Int, height: Int): Int {
-    val proportionalWidth = (width.toFloat() / height * 32f).toInt().coerceAtLeast(32)
-    return proportionalWidth.coerceAtMost(320)
+internal fun calculateRecognitionWidth(width: Int, height: Int): Int {
+    if (height <= 0) return MIN_RECOGNITION_WIDTH
+    val proportionalWidth = (width.toFloat() / height * 32f).toInt().coerceAtLeast(MIN_RECOGNITION_WIDTH)
+    return proportionalWidth.coerceAtMost(MAX_RECOGNITION_WIDTH)
 }
 
+private const val MIN_RECOGNITION_WIDTH = 32
+private const val MAX_RECOGNITION_WIDTH = 320
+
 private fun Bitmap.toNchw(width: Int, height: Int, mean: FloatArray, standardDeviation: FloatArray): FloatArray {
-    val scaled = if (this.width == width && this.height == height) this else Bitmap.createScaledBitmap(this, width, height, true)
+    val scaled = if (this.width == width && this.height == height) this else scale(width, height)
     try {
         val pixels = IntArray(width * height)
         scaled.getPixels(pixels, 0, width, 0, 0, width, height)
@@ -413,19 +488,29 @@ private fun loadOcrDictionary(file: File): List<String> = BufferedReader(FileRea
     }
 }
 
-private fun decodeOcrRecognition(
+/**
+ * Greedy CTC decoding: per timestep take the argmax class, drop the blank class (index 0)
+ * and collapse repeats of the class kept at the previous timestep.
+ */
+internal fun decodeOcrRecognition(
     values: FloatArray,
     shape: LongArray,
     dictionary: List<String>,
     boundingBox: PixelBox,
 ): OcrTextBlock? {
     if (shape.size < 3) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 识别输出 shape 无效")
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_ocr_recognition_output_invalid),
+        )
     }
     val steps = shape[shape.size - 2].toInt()
     val classCount = shape.last().toInt()
     if (steps <= 0 || classCount <= 1 || values.size < steps * classCount) {
-        throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "OCR 识别输出数据无效")
+        throw VisionInferenceException(
+            VisionErrorCode.INFERENCE_FAILED,
+            UiText(R.string.error_ocr_recognition_output_invalid),
+        )
     }
     val text = StringBuilder()
     var confidenceSum = 0f
@@ -453,13 +538,7 @@ private fun decodeOcrRecognition(
 }
 
 private fun com.baidu.paddle.lite.Tensor.floatDataOrThrow(): FloatArray = getFloatData()
-    ?: throw VisionInferenceException(VisionErrorCode.INFERENCE_FAILED, "模型未返回 float 输出")
-
-private object PascalVocLabels {
-    private val labels = listOf(
-        "背景", "飞机", "自行车", "鸟", "船", "瓶子", "公共汽车", "汽车", "猫", "椅子",
-        "牛", "餐桌", "狗", "马", "摩托车", "人", "盆栽", "羊", "沙发", "火车", "电视",
+    ?: throw VisionInferenceException(
+        VisionErrorCode.INFERENCE_FAILED,
+        UiText(R.string.error_model_output_missing),
     )
-
-    fun nameFor(categoryId: Int): String = labels.getOrElse(categoryId) { "未知类别($categoryId)" }
-}

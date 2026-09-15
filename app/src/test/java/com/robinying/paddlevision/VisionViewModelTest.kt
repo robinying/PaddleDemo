@@ -34,7 +34,7 @@ class VisionViewModelTest {
                     task = VisionTask.OBJECT,
                     imageSize = ImageSize(100, 100),
                     elapsedMillis = 8,
-                    detections = listOf(DetectedObject("狗", 0.9f, PixelBox(0f, 0f, 10f, 10f))),
+                    detections = listOf(DetectedObject(12, 0.9f, PixelBox(0f, 0f, 10f, 10f))),
                 ),
             ),
         )
@@ -42,7 +42,10 @@ class VisionViewModelTest {
 
         viewModel.onIntent(VisionIntent.RunRequested)
 
-        assertEquals(UiText(R.string.result_object_summary, listOf<Any>(1, 8L)), viewModel.uiState.value.message)
+        assertEquals(
+            UiText(R.plurals.result_object_summary, listOf<Any>(1, 8L), quantity = 1),
+            viewModel.uiState.value.message,
+        )
         assertFalse(viewModel.uiState.value.isRunning)
     }
 
@@ -57,6 +60,36 @@ class VisionViewModelTest {
 
         assertTrue(viewModel.uiState.value.isRunning)
         assertEquals(1, inferenceUseCase.runCount)
+    }
+
+    @Test
+    fun failureShowsTheActionableMessageCarriedByTheException() = runTest {
+        val failureText = UiText(R.string.error_ocr_language_unsupported)
+        val viewModel = VisionViewModel(
+            FakeVisionInferenceUseCase(
+                failure = VisionInferenceException(VisionErrorCode.UNSUPPORTED_TASK, failureText),
+            ),
+        )
+        viewModel.onIntent(VisionIntent.ImageSelected("content://picked"))
+
+        viewModel.onIntent(VisionIntent.RunRequested)
+
+        assertEquals(failureText, viewModel.uiState.value.message)
+        assertFalse(viewModel.uiState.value.isRunning)
+    }
+
+    @Test
+    fun unclassifiedFailureNeverRendersAnInternalEnumName() = runTest {
+        val viewModel = VisionViewModel(FakeVisionInferenceUseCase(failure = IllegalStateException("boom")))
+        viewModel.onIntent(VisionIntent.ImageSelected("content://picked"))
+
+        viewModel.onIntent(VisionIntent.RunRequested)
+
+        assertEquals(UiText(VisionErrorCode.INFERENCE_FAILED.messageRes), viewModel.uiState.value.message)
+        assertTrue("The fallback must not interpolate the error code name", viewModel.uiState.value.message.args.isEmpty())
+        assertFalse(
+            viewModel.uiState.value.message.args.any { it.toString().contains(VisionErrorCode.INFERENCE_FAILED.name) },
+        )
     }
 
     @Test
@@ -124,6 +157,7 @@ private class FakeVisionInferenceUseCase(
         elapsedMillis = 1,
     ),
     private val holdResult: Boolean = false,
+    private val failure: Exception? = null,
 ) : VisionInferenceUseCase {
     var runCount = 0
 
@@ -136,6 +170,7 @@ private class FakeVisionInferenceUseCase(
         if (holdResult) {
             kotlinx.coroutines.awaitCancellation()
         }
+        failure?.let { throw it }
         return result
     }
 }

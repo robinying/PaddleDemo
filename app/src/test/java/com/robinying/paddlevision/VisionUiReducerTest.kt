@@ -56,21 +56,26 @@ class VisionUiReducerTest {
 
         assertEquals(false, result.isRunning)
         assertEquals(inferenceResult, result.result)
-        assertEquals(UiText(R.string.result_ocr_summary, listOf<Any>(1, 12L)), result.message)
+        assertEquals(
+            UiText(R.plurals.result_ocr_summary, listOf<Any>(1, 12L), quantity = 1),
+            result.message,
+        )
     }
 
     @Test
-    fun failedRunClearsPreviousResult() {
+    fun failedRunClearsPreviousResultAndKeepsTheLocalizableMessage() {
         val current = VisionUiState(
             imageUri = "content://picked",
             isRunning = true,
             result = sampleOcrResult(),
         )
+        val failure = UiText(R.string.error_ocr_language_unsupported)
 
-        val result = VisionUiReducer.runFailed(current, UiText(R.string.message_inference_failed, listOf("INFERENCE_FAILED")))
+        val result = VisionUiReducer.runFailed(current, failure)
 
         assertNull(result.result)
         assertEquals(false, result.isRunning)
+        assertEquals(failure, result.message)
     }
 
     @Test

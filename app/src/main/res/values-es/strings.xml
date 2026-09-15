@@ -1,1 +1,99 @@
-<resources><string name="app_subtitle">Análisis de imágenes en el dispositivo</string><string name="offline">Sin conexión</string><string name="analysis_mode">Modo de análisis</string><string name="recognition_language">Idioma de reconocimiento</string><string name="task_object">Detección de objetos</string><string name="task_face">Detección facial</string><string name="pick_image">Elegir imagen</string><string name="change_image">Cambiar imagen</string><string name="analyzing">Analizando…</string><string name="analysis_result">Resultado</string><string name="message_choose_capability">Elige una función y una imagen</string><string name="message_no_image_selected">No se seleccionó ninguna imagen</string><string name="message_running">En ejecución…</string></resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" tools:ignore="Typos">Paddle Vision</string>
+    <string name="app_subtitle">Análisis de imágenes en el dispositivo</string>
+    <string name="offline">Sin conexión</string>
+    <string name="analysis_mode">Modo de análisis</string>
+    <string name="recognition_language">Idioma de reconocimiento</string>
+    <string name="ocr_language_note">Solo se incluye el modelo OCR en chino; los demás idiomas aún no están disponibles</string>
+    <string name="task_ocr">OCR</string>
+    <string name="task_object">Detección de objetos</string>
+    <string name="task_face">Detección facial</string>
+    <string name="task_ocr_description">Reconoce el texto de una imagen</string>
+    <string name="task_object_description">Detecta clase, posición y confianza</string>
+    <string name="task_face_description">Solo detecta posiciones, nunca la identidad</string>
+    <string name="language_chinese">Chino</string>
+    <string name="language_english">Inglés</string>
+    <string name="language_french">Francés</string>
+    <string name="language_spanish">Español</string>
+    <string name="select_task">Seleccionar %1$s</string>
+    <string name="selected_language">✓ %1$s</string>
+    <string name="choose_image_to_start">Elige una imagen para iniciar %1$s</string>
+    <string name="local_processing">Las imágenes permanecen en este dispositivo</string>
+    <string name="ready">Listo</string>
+    <string name="image_ready">Imagen lista para %1$s</string>
+    <string name="no_image_upload">Las imágenes nunca se suben ni se guardan</string>
+    <string name="analyzing_task">Analizando %1$s</string>
+    <string name="on_device_model">Modelo en el dispositivo en ejecución</string>
+    <string name="pick_image_accessibility">Elegir una imagen de la galería</string>
+    <string name="pick_image">Elegir imagen</string>
+    <string name="change_image">Cambiar imagen</string>
+    <string name="run_task">Ejecutar %1$s</string>
+    <string name="analyzing">Analizando…</string>
+    <string name="analysis_result">Resultado</string>
+    <string name="analysis_result_accessibility">Resultado: %1$s</string>
+    <string name="face_privacy_note">La detección facial solo muestra posición y confianza, nunca la identidad.</string>
+    <string name="text_blocks">Bloques de texto</string>
+    <string name="detected_objects">Objetos</string>
+    <string name="detected_faces">Rostros</string>
+    <string name="end_to_end_time">Tiempo total</string>
+    <string name="recognized_text">Texto reconocido</string>
+    <string name="no_text_recognized">No se encontró texto legible</string>
+    <string name="ocr_confidence">Confianza %1$s</string>
+    <string name="no_objects_detected">No se detectaron objetos</string>
+    <string name="no_faces_detected">No se detectaron rostros</string>
+    <string name="face_number">Rostro %1$d</string>
+    <string name="selected_image_preview">Vista previa de la imagen de %1$s seleccionada</string>
+    <string name="object_unknown_category">Categoría desconocida (%1$d)</string>
+
+    <string name="message_choose_capability">Elige una función y una imagen</string>
+    <string name="message_face_privacy">La detección facial nunca identifica personas</string>
+    <string name="message_task_selected">Función seleccionada. Elige una imagen.</string>
+    <string name="message_language_selected">Idioma de OCR seleccionado. Vuelve a elegir la imagen.</string>
+    <string name="message_no_image_selected">No se seleccionó ninguna imagen</string>
+    <string name="message_image_selected">Imagen seleccionada. Lista para ejecutar.</string>
+    <string name="message_running">En ejecución…</string>
+    <string name="message_pick_image">Elige una imagen</string>
+
+    <plurals name="result_ocr_summary">
+        <item quantity="one">%1$d bloque de texto en %2$d ms</item>
+        <item quantity="other">%1$d bloques de texto en %2$d ms</item>
+        <item quantity="many">%1$d bloques de texto en %2$d ms</item>
+    </plurals>
+    <plurals name="result_object_summary">
+        <item quantity="one">%1$d objeto en %2$d ms</item>
+        <item quantity="other">%1$d objetos en %2$d ms</item>
+        <item quantity="many">%1$d objetos en %2$d ms</item>
+    </plurals>
+    <plurals name="result_face_summary">
+        <item quantity="one">%1$d rostro en %2$d ms</item>
+        <item quantity="other">%1$d rostros en %2$d ms</item>
+        <item quantity="many">%1$d rostros en %2$d ms</item>
+    </plurals>
+
+    <string name="error_unknown">error desconocido</string>
+    <string name="error_code_asset_missing">Faltan recursos del modelo. Reinstala la aplicación.</string>
+    <string name="error_code_model_initialization_failed">No se pudo inicializar el modelo. Reintenta o reinstala la aplicación.</string>
+    <string name="error_code_image_decode_failed">No se pudo leer la imagen seleccionada. Vuelve a elegirla.</string>
+    <string name="error_code_unsupported_task">Esta tarea no es compatible.</string>
+    <string name="error_code_inference_failed">El modelo no pudo ejecutarse. Inténtalo de nuevo.</string>
+    <string name="error_asset_integrity_failed">Falló la verificación de integridad de los recursos del modelo</string>
+    <string name="error_asset_install_failed">No se pudo instalar el archivo del modelo</string>
+    <string name="error_asset_install_incomplete">Los recursos del modelo están incompletos: %1$s</string>
+    <string name="error_model_file_missing">El archivo del modelo no está instalado: %1$s</string>
+    <string name="error_model_load_failed">No se pudo cargar el modelo: %1$s</string>
+    <string name="error_model_input_failed">No se pudo escribir la entrada del modelo</string>
+    <string name="error_model_output_missing">El modelo no devolvió salida en coma flotante</string>
+    <string name="error_object_output_contract">La salida del modelo no cumple el contrato de detección: %1$s</string>
+    <string name="error_face_output_contract">La salida del modelo facial no cumple el contrato scores/boxes</string>
+    <string name="error_inference_failed">Falló la inferencia del modelo</string>
+    <string name="error_ocr_detection_failed">Falló la detección de texto OCR</string>
+    <string name="error_ocr_recognition_failed">Falló el reconocimiento de texto OCR</string>
+    <string name="error_ocr_dictionary_missing">El diccionario OCR no está instalado</string>
+    <string name="error_ocr_language_unsupported">El modelo OCR incluido solo admite chino</string>
+    <string name="error_ocr_detection_output_invalid">La salida de detección OCR no es válida</string>
+    <string name="error_ocr_recognition_output_invalid">La salida de reconocimiento OCR no es válida</string>
+    <string name="error_image_unavailable">La imagen seleccionada ya no es accesible. Vuelve a elegirla.</string>
+    <string name="error_image_undecodable">No se pudo decodificar la imagen seleccionada. Prueba con un formato común.</string>
+    <string name="error_image_invalid">El archivo seleccionado no es una imagen válida</string>
+    <string name="error_image_convert_failed">No se pudo convertir la imagen seleccionada</string>
+</resources>

@@ -1,0 +1,26 @@
+<resources>
+    <!-- Pascal VOC category labels, indexed by the model's category id. -->
+    <string-array name="object_categories">
+        <item>背景</item>
+        <item>飞机</item>
+        <item>自行车</item>
+        <item>鸟</item>
+        <item>船</item>
+        <item>瓶子</item>
+        <item>公共汽车</item>
+        <item>汽车</item>
+        <item>猫</item>
+        <item>椅子</item>
+        <item>牛</item>
+        <item>餐桌</item>
+        <item>狗</item>
+        <item>马</item>
+        <item>摩托车</item>
+        <item>人</item>
+        <item>盆栽</item>
+        <item>羊</item>
+        <item>沙发</item>
+        <item>火车</item>
+        <item>电视</item>
+    </string-array>
+</resources>

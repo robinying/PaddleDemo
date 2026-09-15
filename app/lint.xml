@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lint gate configuration.
+
+  Everything not listed here keeps its default severity, so an error still fails the build and
+  the report stays actionable. Only explicitly accepted risks are downgraded, and each one says
+  who accepted it and why.
+-->
+<lint>
+    <!--
+      Accepted: the first release ships arm64-v8a only. Adding x86_64 would mean a second
+      Paddle Lite runtime and model set, which is a product decision recorded in README.
+    -->
+    <issue id="ChromeOsAbiSupport" severity="informational" />
+
+    <!--
+      Accepted: dependency upgrades are scheduled work, not per-change work. The Paddle Lite
+      runtime and model assets are version-pinned to v2.10-rc and must move together, so the
+      version-catalog bumps are tracked separately from feature changes.
+    -->
+    <issue id="GradleDependency" severity="informational" />
+    <issue id="NewerVersionAvailable" severity="informational" />
+    <issue id="AndroidGradlePluginVersion" severity="informational" />
+</lint>
