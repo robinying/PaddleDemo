@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,22 +64,27 @@ class VisionViewModel(
                 }
             } catch (exception: VisionInferenceException) {
                 if (isActiveRequest(requestId)) {
-                    mutableUiState.value = VisionUiReducer.runFailed(
-                        mutableUiState.value,
-                        UiText(R.string.message_inference_failed, listOf(exception.code.name)),
-                    )
+                    mutableUiState.value = VisionUiReducer.runFailed(mutableUiState.value, exception.text)
                 }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (exception: Exception) {
                 if (isActiveRequest(requestId)) {
                     mutableUiState.value = VisionUiReducer.runFailed(
                         mutableUiState.value,
-                        UiText(R.string.message_inference_failed, listOf(VisionErrorCode.INFERENCE_FAILED.name)),
+                        UiText(VisionErrorCode.INFERENCE_FAILED.messageRes),
                     )
                 }
             }
         }
     }
 
+    /**
+     * Invalidates the running request so its result can no longer be written back. The job is
+     * cancelled too, but a JNI inference already in flight cannot be interrupted; it finishes
+     * in the background and [InferenceGate] keeps the next run queued behind it, so the two
+     * never share the model and bitmap memory at the same time.
+     */
     private fun invalidateActiveInference() {
         activeRequestId++
         inferenceJob?.cancel()

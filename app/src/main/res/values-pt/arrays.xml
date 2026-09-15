@@ -1,0 +1,26 @@
+<resources>
+    <!-- Pascal VOC category labels, indexed by the model's category id. -->
+    <string-array name="object_categories">
+        <item>Fundo</item>
+        <item>Avião</item>
+        <item>Bicicleta</item>
+        <item>Pássaro</item>
+        <item>Barco</item>
+        <item>Garrafa</item>
+        <item>Autocarro</item>
+        <item>Carro</item>
+        <item>Gato</item>
+        <item>Cadeira</item>
+        <item>Vaca</item>
+        <item>Mesa de jantar</item>
+        <item>Cão</item>
+        <item>Cavalo</item>
+        <item>Motocicleta</item>
+        <item>Pessoa</item>
+        <item>Planta em vaso</item>
+        <item>Ovelha</item>
+        <item>Sofá</item>
+        <item>Comboio</item>
+        <item>Televisor</item>
+    </string-array>
+</resources>

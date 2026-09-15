@@ -6,12 +6,36 @@ enum class VisionTask(val titleRes: Int, val descriptionRes: Int, val nativeId: 
     FACE(R.string.task_face, R.string.task_face_description, "face"),
 }
 
-enum class OcrLanguage(val titleRes: Int, val nativeId: String) {
-    CHINESE(R.string.language_chinese, "zh"), ENGLISH(R.string.language_english, "en"),
-    FRENCH(R.string.language_french, "fr"), SPANISH(R.string.language_spanish, "es"),
+/**
+ * OCR languages the product plans to support. [isPackaged] is the single source of truth
+ * for availability: [packaged] drives the selector, so a language whose model is not
+ * bundled can never be chosen and can never lead the user into a run that always fails.
+ */
+enum class OcrLanguage(val titleRes: Int, val nativeId: String, val isPackaged: Boolean) {
+    CHINESE(R.string.language_chinese, "zh", true),
+    ENGLISH(R.string.language_english, "en", false),
+    FRENCH(R.string.language_french, "fr", false),
+    SPANISH(R.string.language_spanish, "es", false),
+    ;
+
+    companion object {
+        val packaged: List<OcrLanguage> = entries.filter(OcrLanguage::isPackaged)
+    }
 }
 
-data class UiText(val resourceId: Int, val args: List<Any> = emptyList())
+/**
+ * A localizable piece of UI text.
+ *
+ * [resourceId] is a `string` resource unless [quantity] is set, in which case it is a
+ * `plurals` resource resolved with that count. Entries in [args] may themselves be
+ * [UiText] values, which are resolved recursively so a message can embed another
+ * localized fragment.
+ */
+data class UiText(
+    val resourceId: Int,
+    val args: List<Any> = emptyList(),
+    val quantity: Int? = null,
+)
 
 data class VisionUiState(
     val selectedTask: VisionTask = VisionTask.OCR,
@@ -84,3 +108,10 @@ object VisionUiReducer {
         message = userMessage,
     )
 }
+
+/**
+ * Resolves a Pascal VOC category id against the packaged label list.
+ * Out-of-range ids fall back to [fallback] rather than leaking a raw index into the UI.
+ */
+fun objectCategoryLabel(categoryId: Int, labels: List<String>, fallback: (Int) -> String): String =
+    labels.getOrNull(categoryId) ?: fallback(categoryId)

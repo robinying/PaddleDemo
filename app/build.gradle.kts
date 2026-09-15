@@ -32,12 +32,19 @@ android {
     kotlinOptions { jvmTarget = "11" }
     buildFeatures { compose = true; buildConfig = true }
     packaging { jniLibs { useLegacyPackaging = false } }
+    lint {
+        // Explicit so the CI gate keeps failing on any issue that is not a registered
+        // accepted risk in lint.xml.
+        lintConfig = file("lint.xml")
+        abortOnError = true
+        checkDependencies = true
+    }
 }
 
 dependencies {
     implementation(files("src/main/paddle/java/PaddlePredictor.jar"))
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -46,12 +53,12 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(libs.androidx.test.uiautomator)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

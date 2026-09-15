@@ -1,18 +1,93 @@
 <resources>
-    <string name="app_name">Paddle Vision</string><string name="app_subtitle">端侧图像分析工作台</string><string name="offline">本地离线</string>
-    <string name="analysis_mode">分析模式</string><string name="recognition_language">识别语言</string><string name="task_ocr">OCR</string><string name="task_object">物体检测</string><string name="task_face">人脸检测</string>
-    <string name="task_ocr_description">识别图片中的文字</string><string name="task_object_description">检测类别、位置和置信度</string><string name="task_face_description">仅检测人脸位置，不识别身份</string>
-    <string name="language_chinese">中文</string><string name="language_english">英语</string><string name="language_french">法语</string><string name="language_spanish">西班牙语</string>
-    <string name="select_task">选择 %1$s</string><string name="selected_language">✓ %1$s</string><string name="choose_image_to_start">选择一张图片开始%1$s</string><string name="local_processing">图片仅在此设备处理</string><string name="ready">已准备</string><string name="image_ready">图片已就绪，可运行%1$s</string><string name="no_image_upload">不会上传或保存图片内容</string><string name="analyzing_task">正在分析%1$s</string><string name="on_device_model">端侧模型运行中</string><string name="pick_image_accessibility">从相册选择图片</string><string name="pick_image">选择图片</string><string name="change_image">更换图片</string><string name="run_task">运行 %1$s</string><string name="analyzing">分析中…</string><string name="analysis_result">分析结果</string><string name="analysis_result_accessibility">分析结果：%1$s</string><string name="face_privacy_note">人脸检测仅显示位置与置信度，不识别身份。</string><string name="text_blocks">文本块</string><string name="detected_objects">检测目标</string><string name="detected_faces">检测人脸</string><string name="end_to_end_time">端到端耗时</string>
-    <string name="message_choose_capability">请选择能力并从相册选择图片</string><string name="message_face_privacy">人脸检测仅显示位置，不识别身份</string><string name="message_task_selected">已选择能力，请从相册选择图片</string><string name="message_language_selected">已选择 OCR 语言，请重新选择图片</string><string name="message_no_image_selected">未选择图片</string><string name="message_image_selected">已选择图片，可以运行</string><string name="message_running">正在运行…</string><string name="message_pick_image">请选择一张图片</string><string name="message_inference_failed">推理失败：%1$s</string>
-    <string name="result_ocr_summary">识别到 %1$d 个文本块，耗时 %2$d ms</string><string name="result_object_summary">检测到 %1$d 个目标，耗时 %2$d ms</string><string name="result_face_summary">检测到 %1$d 张人脸，耗时 %2$d ms</string>
-    <string name="selected_image_preview">已选择的 %1$s 图片预览</string>
+    <string name="app_name">Paddle Vision</string>
+    <string name="app_subtitle">端侧图像分析工作台</string>
+    <string name="offline">本地离线</string>
+    <string name="analysis_mode">分析模式</string>
+    <string name="recognition_language">识别语言</string>
+    <string name="ocr_language_note">当前仅打包中文 OCR 模型，其他语言尚未提供</string>
+    <string name="task_ocr">OCR</string>
+    <string name="task_object">物体检测</string>
+    <string name="task_face">人脸检测</string>
+    <string name="task_ocr_description">识别图片中的文字</string>
+    <string name="task_object_description">检测类别、位置和置信度</string>
+    <string name="task_face_description">仅检测人脸位置，不识别身份</string>
+    <string name="language_chinese">中文</string>
+    <string name="language_english">英语</string>
+    <string name="language_french">法语</string>
+    <string name="language_spanish">西班牙语</string>
+    <string name="select_task">选择 %1$s</string>
+    <string name="selected_language">✓ %1$s</string>
+    <string name="choose_image_to_start">选择一张图片开始%1$s</string>
+    <string name="local_processing">图片仅在此设备处理</string>
+    <string name="ready">已准备</string>
+    <string name="image_ready">图片已就绪，可运行%1$s</string>
+    <string name="no_image_upload">不会上传或保存图片内容</string>
+    <string name="analyzing_task">正在分析%1$s</string>
+    <string name="on_device_model">端侧模型运行中</string>
+    <string name="pick_image_accessibility">从相册选择图片</string>
+    <string name="pick_image">选择图片</string>
+    <string name="change_image">更换图片</string>
+    <string name="run_task">运行 %1$s</string>
+    <string name="analyzing">分析中…</string>
+    <string name="analysis_result">分析结果</string>
+    <string name="analysis_result_accessibility">分析结果：%1$s</string>
+    <string name="face_privacy_note">人脸检测仅显示位置与置信度，不识别身份。</string>
+    <string name="text_blocks">文本块</string>
+    <string name="detected_objects">检测目标</string>
+    <string name="detected_faces">检测人脸</string>
+    <string name="end_to_end_time">端到端耗时</string>
     <string name="recognized_text">识别文本</string>
     <string name="no_text_recognized">未识别到可读取的文字</string>
     <string name="ocr_confidence">置信度 %1$s</string>
-    <string name="detected_object_details">检测目标</string>
     <string name="no_objects_detected">未检测到目标</string>
-    <string name="detected_face_details">检测人脸</string>
     <string name="no_faces_detected">未检测到人脸</string>
     <string name="face_number">人脸 %1$d</string>
+    <string name="selected_image_preview">已选择的 %1$s 图片预览</string>
+    <string name="object_unknown_category">未知类别(%1$d)</string>
+
+    <string name="message_choose_capability">请选择能力并从相册选择图片</string>
+    <string name="message_face_privacy">人脸检测仅显示位置，不识别身份</string>
+    <string name="message_task_selected">已选择能力，请从相册选择图片</string>
+    <string name="message_language_selected">已选择 OCR 语言，请重新选择图片</string>
+    <string name="message_no_image_selected">未选择图片</string>
+    <string name="message_image_selected">已选择图片，可以运行</string>
+    <string name="message_running">正在运行…</string>
+    <string name="message_pick_image">请选择一张图片</string>
+
+    <plurals name="result_ocr_summary">
+        <item quantity="other">识别到 %1$d 个文本块，耗时 %2$d ms</item>
+    </plurals>
+    <plurals name="result_object_summary">
+        <item quantity="other">检测到 %1$d 个目标，耗时 %2$d ms</item>
+    </plurals>
+    <plurals name="result_face_summary">
+        <item quantity="other">检测到 %1$d 张人脸，耗时 %2$d ms</item>
+    </plurals>
+
+    <string name="error_unknown">未知错误</string>
+    <string name="error_code_asset_missing">模型资源缺失，请重新安装应用</string>
+    <string name="error_code_model_initialization_failed">模型初始化失败，请重试或重新安装应用</string>
+    <string name="error_code_image_decode_failed">无法读取所选图片，请重新选择图片</string>
+    <string name="error_code_unsupported_task">当前任务不受支持</string>
+    <string name="error_code_inference_failed">模型推理失败，请重试</string>
+    <string name="error_asset_integrity_failed">模型资源完整性校验失败</string>
+    <string name="error_asset_install_failed">无法安装模型文件</string>
+    <string name="error_asset_install_incomplete">模型资源未完整安装：%1$s</string>
+    <string name="error_model_file_missing">模型文件未安装：%1$s</string>
+    <string name="error_model_load_failed">模型加载失败：%1$s</string>
+    <string name="error_model_input_failed">无法写入模型输入</string>
+    <string name="error_model_output_missing">模型未返回浮点输出</string>
+    <string name="error_object_output_contract">模型输出格式不符合检测结果契约：%1$s</string>
+    <string name="error_face_output_contract">人脸模型输出格式不符合 scores/boxes 契约</string>
+    <string name="error_inference_failed">模型推理失败</string>
+    <string name="error_ocr_detection_failed">OCR 文本检测推理失败</string>
+    <string name="error_ocr_recognition_failed">OCR 文本识别推理失败</string>
+    <string name="error_ocr_dictionary_missing">OCR 字典未安装</string>
+    <string name="error_ocr_language_unsupported">当前打包的 OCR 模型只支持中文</string>
+    <string name="error_ocr_detection_output_invalid">OCR 检测输出数据无效</string>
+    <string name="error_ocr_recognition_output_invalid">OCR 识别输出数据无效</string>
+    <string name="error_image_unavailable">所选图片已不可访问，请重新选择图片</string>
+    <string name="error_image_undecodable">无法解码所选图片，请选择常见图片格式后重试</string>
+    <string name="error_image_invalid">所选文件不是有效图片</string>
+    <string name="error_image_convert_failed">无法转换所选图片</string>
 </resources>

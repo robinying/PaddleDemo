@@ -1,1 +1,96 @@
-<resources><string name="app_name">Paddle Vision</string><string name="app_subtitle">On-device image analysis</string><string name="offline">Offline</string><string name="analysis_mode">Analysis mode</string><string name="recognition_language">Recognition language</string><string name="task_object">Object detection</string><string name="task_face">Face detection</string><string name="task_ocr_description">Recognize text in an image</string><string name="task_object_description">Detect classes, positions, and confidence</string><string name="task_face_description">Detect positions only, never identity</string><string name="language_chinese">Chinese</string><string name="language_english">English</string><string name="language_french">French</string><string name="language_spanish">Spanish</string><string name="select_task">Select %1$s</string><string name="choose_image_to_start">Choose an image to start %1$s</string><string name="local_processing">Images stay on this device</string><string name="ready">Ready</string><string name="image_ready">Image ready for %1$s</string><string name="no_image_upload">Images are never uploaded or saved</string><string name="analyzing_task">Analyzing %1$s</string><string name="on_device_model">On-device model running</string><string name="pick_image_accessibility">Choose an image from photos</string><string name="pick_image">Choose image</string><string name="change_image">Change image</string><string name="run_task">Run %1$s</string><string name="analyzing">Analyzing…</string><string name="analysis_result">Result</string><string name="analysis_result_accessibility">Result: %1$s</string><string name="face_privacy_note">Face detection only shows position and confidence, never identity.</string><string name="text_blocks">Text blocks</string><string name="detected_objects">Objects</string><string name="detected_faces">Faces</string><string name="end_to_end_time">End-to-end time</string><string name="message_choose_capability">Choose a capability and an image</string><string name="message_face_privacy">Face detection never identifies people</string><string name="message_task_selected">Capability selected. Choose an image.</string><string name="message_language_selected">OCR language selected. Choose the image again.</string><string name="message_no_image_selected">No image selected</string><string name="message_image_selected">Image selected. Ready to run.</string><string name="message_running">Running…</string><string name="message_pick_image">Choose an image</string><string name="message_inference_failed">Inference failed: %1$s</string><string name="result_ocr_summary">%1$d text blocks in %2$d ms</string><string name="result_object_summary">%1$d objects in %2$d ms</string><string name="result_face_summary">%1$d faces in %2$d ms</string></resources>
+<resources>
+    <string name="app_name">Paddle Vision</string>
+    <string name="app_subtitle">On-device image analysis</string>
+    <string name="offline">Offline</string>
+    <string name="analysis_mode">Analysis mode</string>
+    <string name="recognition_language">Recognition language</string>
+    <string name="ocr_language_note">Only the Chinese OCR model is packaged; other languages are not available yet</string>
+    <string name="task_ocr">OCR</string>
+    <string name="task_object">Object detection</string>
+    <string name="task_face">Face detection</string>
+    <string name="task_ocr_description">Recognize text in an image</string>
+    <string name="task_object_description">Detect classes, positions, and confidence</string>
+    <string name="task_face_description">Detect positions only, never identity</string>
+    <string name="language_chinese">Chinese</string>
+    <string name="language_english">English</string>
+    <string name="language_french">French</string>
+    <string name="language_spanish">Spanish</string>
+    <string name="select_task">Select %1$s</string>
+    <string name="selected_language">✓ %1$s</string>
+    <string name="choose_image_to_start">Choose an image to start %1$s</string>
+    <string name="local_processing">Images stay on this device</string>
+    <string name="ready">Ready</string>
+    <string name="image_ready">Image ready for %1$s</string>
+    <string name="no_image_upload">Images are never uploaded or saved</string>
+    <string name="analyzing_task">Analyzing %1$s</string>
+    <string name="on_device_model">On-device model running</string>
+    <string name="pick_image_accessibility">Choose an image from photos</string>
+    <string name="pick_image">Choose image</string>
+    <string name="change_image">Change image</string>
+    <string name="run_task">Run %1$s</string>
+    <string name="analyzing">Analyzing…</string>
+    <string name="analysis_result">Result</string>
+    <string name="analysis_result_accessibility">Result: %1$s</string>
+    <string name="face_privacy_note">Face detection only shows position and confidence, never identity.</string>
+    <string name="text_blocks">Text blocks</string>
+    <string name="detected_objects">Objects</string>
+    <string name="detected_faces">Faces</string>
+    <string name="end_to_end_time">End-to-end time</string>
+    <string name="recognized_text">Recognized text</string>
+    <string name="no_text_recognized">No readable text found</string>
+    <string name="ocr_confidence">Confidence %1$s</string>
+    <string name="no_objects_detected">No objects detected</string>
+    <string name="no_faces_detected">No faces detected</string>
+    <string name="face_number">Face %1$d</string>
+    <string name="selected_image_preview">Preview of the selected %1$s image</string>
+    <string name="object_unknown_category">Unknown category (%1$d)</string>
+
+    <string name="message_choose_capability">Choose a capability and an image</string>
+    <string name="message_face_privacy">Face detection never identifies people</string>
+    <string name="message_task_selected">Capability selected. Choose an image.</string>
+    <string name="message_language_selected">OCR language selected. Choose the image again.</string>
+    <string name="message_no_image_selected">No image selected</string>
+    <string name="message_image_selected">Image selected. Ready to run.</string>
+    <string name="message_running">Running…</string>
+    <string name="message_pick_image">Choose an image</string>
+
+    <plurals name="result_ocr_summary">
+        <item quantity="one">%1$d text block in %2$d ms</item>
+        <item quantity="other">%1$d text blocks in %2$d ms</item>
+    </plurals>
+    <plurals name="result_object_summary">
+        <item quantity="one">%1$d object in %2$d ms</item>
+        <item quantity="other">%1$d objects in %2$d ms</item>
+    </plurals>
+    <plurals name="result_face_summary">
+        <item quantity="one">%1$d face in %2$d ms</item>
+        <item quantity="other">%1$d faces in %2$d ms</item>
+    </plurals>
+
+    <string name="error_unknown">unknown error</string>
+    <string name="error_code_asset_missing">Model assets are missing. Reinstall the app.</string>
+    <string name="error_code_model_initialization_failed">The model could not be initialized. Retry or reinstall the app.</string>
+    <string name="error_code_image_decode_failed">The selected image could not be read. Choose it again.</string>
+    <string name="error_code_unsupported_task">This task is not supported.</string>
+    <string name="error_code_inference_failed">The model failed to run. Try again.</string>
+    <string name="error_asset_integrity_failed">Model asset integrity check failed</string>
+    <string name="error_asset_install_failed">The model file could not be installed</string>
+    <string name="error_asset_install_incomplete">Model assets are incomplete: %1$s</string>
+    <string name="error_model_file_missing">Model file is not installed: %1$s</string>
+    <string name="error_model_load_failed">The model failed to load: %1$s</string>
+    <string name="error_model_input_failed">The model input could not be written</string>
+    <string name="error_model_output_missing">The model returned no float output</string>
+    <string name="error_object_output_contract">Model output does not match the detection contract: %1$s</string>
+    <string name="error_face_output_contract">Face model output does not match the scores/boxes contract</string>
+    <string name="error_inference_failed">Model inference failed</string>
+    <string name="error_ocr_detection_failed">OCR text detection failed</string>
+    <string name="error_ocr_recognition_failed">OCR text recognition failed</string>
+    <string name="error_ocr_dictionary_missing">The OCR dictionary is not installed</string>
+    <string name="error_ocr_language_unsupported">The packaged OCR model only supports Chinese</string>
+    <string name="error_ocr_detection_output_invalid">OCR detection output is invalid</string>
+    <string name="error_ocr_recognition_output_invalid">OCR recognition output is invalid</string>
+    <string name="error_image_unavailable">The selected image is no longer accessible. Choose it again.</string>
+    <string name="error_image_undecodable">The selected image could not be decoded. Try a common image format.</string>
+    <string name="error_image_invalid">The selected file is not a valid image</string>
+    <string name="error_image_convert_failed">The selected image could not be converted</string>
+</resources>

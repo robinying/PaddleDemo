@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Viewfinder brackets, kept inside the 72dp adaptive-icon safe zone. -->
+    <path
+        android:pathData="M42,32 H34 V40"
+        android:strokeColor="#087E8B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M66,32 H74 V40"
+        android:strokeColor="#087E8B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M34,68 V76 H42"
+        android:strokeColor="#087E8B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M74,68 V76 H66"
+        android:strokeColor="#087E8B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Aperture, the "vision" mark at the centre of the frame. -->
+    <path
+        android:pathData="M54,45 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18"
+        android:fillColor="#E59F23" />
+    <path
+        android:pathData="M54,51 a3,3 0 1,0 0,6 a3,3 0 1,0 0,-6"
+        android:fillColor="#101B2D" />
+</vector>

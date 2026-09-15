@@ -1,23 +1,24 @@
 # Third-party notices
 
-## Paddle Lite Demo and adapted native algorithms
+## Paddle Lite Demo and adapted deployment contracts
 
 - Project: Paddle-Lite-Demo
 - Source: https://github.com/PaddlePaddle/Paddle-Lite-Demo
 - License: Apache License 2.0
-- Usage: OCR DB post-processing, Clipper integration patterns, object detection and face detection deployment contracts are adapted into this application.
+- Usage: the object-detection and face-detection deployment contracts are adapted into this
+  application — model input sizes, pre-processing mean/scale constants, output tensor layouts and
+  the general approach to decoding detections into boxes.
+
+  This application does **not** contain OpenCV, Clipper or a DB post-processing implementation.
+  OCR post-processing here is an original Kotlin implementation: a BFS connected-component pass
+  over the detector probability map, a pixel-count and minimum-size filter, and a top-to-bottom
+  then left-to-right reading-order sort (`PaddleLiteEngine.kt`).
 
 ## Paddle Lite runtime
 
 - Version: v2.10-rc
 - Source: https://paddlelite-demo.bj.bcebos.com/libs/android/paddle_lite_libs_v2_10_rc.tar.gz
 - License: Apache License 2.0
-
-## OpenCV Android SDK
-
-- Version: 4.2.0
-- Source: https://paddlelite-demo.bj.bcebos.com/libs/android/opencv-4.2.0-android-sdk.tar.gz
-- License: Apache License 2.0; see the upstream OpenCV distribution for bundled component notices.
 
 ## Models
 
