@@ -231,7 +231,12 @@ internal fun requireSupportedOcrLanguage(language: OcrLanguage) {
     }
 }
 
-private data class ModelContract(
+/**
+ * Pins the input geometry and the output contract of one single-head detector. [decode] is the
+ * only place that turns a raw model output into detections, so the shape contracts that fail
+ * first when a model build changes live here.
+ */
+internal data class ModelContract(
     val task: VisionTask,
     val modelFile: File,
     val inputWidth: Int,
@@ -288,7 +293,7 @@ private data class ModelContract(
     }
 }
 
-private data class DetectionCandidate(val categoryId: Int, val confidence: Float, val boundingBox: PixelBox)
+internal data class DetectionCandidate(val categoryId: Int, val confidence: Float, val boundingBox: PixelBox)
 private data class RecognizedRegion(val block: OcrTextBlock?, val elapsedMillis: Long)
 
 private fun PaddlePredictor.setInput(values: FloatArray, width: Int, height: Int) {
@@ -307,7 +312,7 @@ private fun PaddlePredictor.setInput(values: FloatArray, width: Int, height: Int
     }
 }
 
-private fun decodeFaceCandidates(scores: FloatArray, boxes: FloatArray, sourceSize: ImageSize): List<DetectionCandidate> {
+internal fun decodeFaceCandidates(scores: FloatArray, boxes: FloatArray, sourceSize: ImageSize): List<DetectionCandidate> {
     if (scores.size % 2 != 0 || boxes.size != scores.size * 2) {
         throw VisionInferenceException(
             VisionErrorCode.INFERENCE_FAILED,
@@ -325,7 +330,7 @@ private fun decodeFaceCandidates(scores: FloatArray, boxes: FloatArray, sourceSi
     }
 }
 
-private fun FloatArray.asListOfDetectionCandidates(sourceSize: ImageSize): List<DetectionCandidate> =
+internal fun FloatArray.asListOfDetectionCandidates(sourceSize: ImageSize): List<DetectionCandidate> =
     indices.step(6).mapNotNull { index ->
         val confidence = this[index + 1]
         if (!confidence.isFinite() || confidence < 0.5f) return@mapNotNull null
@@ -335,7 +340,7 @@ private fun FloatArray.asListOfDetectionCandidates(sourceSize: ImageSize): List<
         if (box.width <= 0f || box.height <= 0f) null else DetectionCandidate(this[index].toInt(), confidence, box)
     }
 
-private fun List<DetectionCandidate>.nonMaximumSuppression(): List<DetectionCandidate> {
+internal fun List<DetectionCandidate>.nonMaximumSuppression(): List<DetectionCandidate> {
     val result = mutableListOf<DetectionCandidate>()
     groupBy { it.categoryId }.forEach { (_, candidates) ->
         result += VisionGeometry.nonMaximumSuppression(

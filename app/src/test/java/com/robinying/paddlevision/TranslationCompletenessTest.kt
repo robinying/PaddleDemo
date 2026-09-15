@@ -15,8 +15,8 @@ import org.w3c.dom.Element
  *
  * Lint covers `<string>` entries but not `<string-array>` items or plural quantities, so this
  * test compares the full resource name set of every locale against the default one, requires the
- * mandatory `other` plural quantity, and checks that translations keep the same positional format
- * arguments. Run it whenever a string resource is added.
+ * mandatory `other` plural quantity, pins the item count of every string array, and checks that
+ * translations keep the same format arguments. Run it whenever a string resource is added.
  */
 class TranslationCompletenessTest {
     private val resourceDirectory = findResourceDirectory()
@@ -57,8 +57,27 @@ class TranslationCompletenessTest {
         }
     }
 
+    /**
+     * A short array does not fall back item by item: `object_categories` is indexed by the model's
+     * category id, so one dropped item silently relabels every id after it. Lint does not compare
+     * `string-array` members either, so the count is asserted here.
+     */
     @Test
-    fun translationsKeepThePositionalFormatArgumentsOfTheDefaultLocale() {
+    fun everyLocaleDeclaresTheSameStringArrayItemsAsTheDefaultLocale() {
+        val expected = arrayItemCounts(defaultLocaleDirectory)
+        assertTrue("Expected the default locale to declare string arrays", expected.isNotEmpty())
+
+        localeDirectories().forEach { (locale, directory) ->
+            assertEquals(
+                "$locale must keep the default item count of every string array",
+                expected,
+                arrayItemCounts(directory),
+            )
+        }
+    }
+
+    @Test
+    fun translationsKeepTheFormatArgumentsOfTheDefaultLocale() {
         val expected = stringBodies(defaultLocaleDirectory)
 
         localeDirectories().forEach { (locale, directory) ->
@@ -119,8 +138,24 @@ class TranslationCompletenessTest {
         }
     }
 
+    private fun arrayItemCounts(directory: File): Map<String, Int> {
+        val file = directory.resolve(ARRAYS_FILE)
+        if (!file.isFile) return emptyMap()
+        val arrayNodes = parse(file).getElementsByTagName("string-array")
+        return (0 until arrayNodes.length).associate { index ->
+            val array = arrayNodes.item(index) as Element
+            array.getAttribute("name") to array.getElementsByTagName("item").length
+        }
+    }
+
+    /**
+     * Collects the format arguments so two locales can be compared. `%%` is an escaped literal
+     * percent rather than an argument, so it is removed first; the remaining pattern accepts both
+     * positional (`%1$s`) and non-positional (`%s`) arguments, because `%s` and `%d` swapped
+     * between locales is a crash at format time that a positional-only pattern cannot see.
+     */
     private fun formatArguments(body: String): Set<String> =
-        FORMAT_ARGUMENT.findAll(body).mapTo(mutableSetOf()) { it.value }
+        FORMAT_ARGUMENT.findAll(body.replace(ESCAPED_PERCENT, "")).mapTo(mutableSetOf()) { it.value }
 
     private fun parse(file: File) = DocumentBuilderFactory.newInstance()
         .apply { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
@@ -146,6 +181,7 @@ class TranslationCompletenessTest {
         const val STRINGS_FILE = "strings.xml"
         const val ARRAYS_FILE = "arrays.xml"
         const val LOCALE_PREFIX = "values-"
-        val FORMAT_ARGUMENT = Regex("""%(\d+)\$[a-zA-Z]""")
+        const val ESCAPED_PERCENT = "%%"
+        val FORMAT_ARGUMENT = Regex("""%(?:\d+\$)?[a-zA-Z]""")
     }
 }
