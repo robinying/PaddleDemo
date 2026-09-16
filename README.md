@@ -12,6 +12,7 @@
 - **本地离线推理**：模型和推理均在设备端完成。
 - **系统 Photo Picker**：选择单张图片，不申请宽泛媒体读取权限。
 - **图片预览与状态反馈**：选图后在工作区显示本地缩略图；预览与推理解码共用同一套尺寸策略与错误分类，预览失败时在工作区给出提示而非留白；推理期间保留预览并叠加进度状态。
+- **结果框覆盖层**：推理完成后在原图上绘制边界框。目标检测在框上标注本地化类别与置信度，人脸只标注序号（不含身份信息），OCR 只画框（文本已在结果面板列出）。框按原图完整比例定位，因此预览使用 `ContentScale.Fit` 而非 `Crop` —— 裁剪会切掉被分析画面的一部分，使区域外的检测框无法绘制而结果面板仍在计数。
 - **自适应 Compose 界面**：分析模式与语言选择有明确选中态，内容自动避开状态栏和系统导航栏；浅色 / 深色配色均由 `ui/theme` 的设计令牌驱动。
 - **MVVM + UDF**：Compose UI 通过 `VisionIntent` 驱动 `VisionViewModel`，由 `StateFlow<VisionUiState>` 渲染；推理请求具有唯一标识，切换任务、语言或图片会取消并失效旧请求，避免过期结果覆盖当前状态。
 - **单次推理串行化**：协程取消无法中断已进入 JNI 的 Paddle Lite 计算，因此原生推理经 `InferenceGate` 串行化，新请求排队等待旧请求真正返回，避免两套模型与位图同时驻留内存。
@@ -44,7 +45,7 @@ VisionViewModel
 | `ModelStore.kt` | 将模型从 assets 原子复制到 app 私有目录，按任务惰性做 SHA-256 校验并在进程内缓存校验结果。 |
 | `PaddleLiteEngine.kt` | OCR、SSD 目标检测及人脸检测模型推理和后处理；按模型路径缓存 Predictor。 |
 | `VisionGeometry.kt` | 纯 Kotlin 坐标转换、IoU 与 NMS。 |
-| `ui/` | `VisionScreen`、`TaskSelector`、`LanguageSelector`、`ImageWorkspace`、`ResultPanel` 等 Compose 组件。 |
+| `ui/` | `VisionScreen`、`TaskSelector`、`LanguageSelector`、`ImageWorkspace`、`ResultPanel` 等 Compose 组件；`ResultOverlay` 绘制结果框，`OverlayGeometry` 提供其纯函数坐标映射。 |
 | `ui/theme/` | 设计令牌（`VisionColors`）与 `MaterialTheme` 接线，浅色 / 深色两套取值。 |
 
 ## 环境要求
@@ -174,7 +175,7 @@ adb shell monkey -p com.robinying.paddlevision 1
 - OCR 当前仅打包中文模型。语言选择器只列出已打包的语言，未打包语言（英语/法语/西班牙语）不会作为可选项出现，选择器下方给出说明；`requireSupportedOcrLanguage` 作为二次防线仍会拒绝未打包语言。
 - 目标检测类别标签按系统语言渲染；Pascal VOC 的 21 个类别名随 `values-*/arrays.xml` 提供，越界类别 ID 回退到带占位符的「未知类别」文案。
 - OCR 仅对检测概率图的连通区域进行轴对齐裁剪；复杂多区域版面、旋转文本、透视矫正和完整语言扩展仍有待后续实现。
-- UI 会展示原图预览、任务状态和结果摘要；图片结果框（OCR 文本块、目标/人脸边界框）的覆盖层渲染仍是后续增强项。
+- UI 会展示原图预览、状态与结果摘要，并在原图上绘制结果框覆盖层；框上标签对过小的框自动省略，避免遮挡被标注区域。
 - 首发 ABI 仅为 `arm64-v8a`。
 - 依赖版本升级（Gradle / AGP / Kotlin / AndroidX）与 Paddle Lite runtime 升级解耦，另行排期；当前版本在 `app/lint.xml` 中登记为可接受风险。
 

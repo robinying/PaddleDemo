@@ -83,6 +83,10 @@ internal fun ImageWorkspace(state: VisionUiState) {
                 state.isRunning -> RunningWorkspace(state.selectedTask, imageUri)
                 else -> SelectedWorkspace(state.selectedTask, imageUri)
             }
+            val result = state.result
+            if (result != null && imageUri != null && !state.isRunning) {
+                ResultOverlay(result = result, modifier = Modifier.fillMaxSize())
+            }
             ViewfinderCorners(taskColor)
         }
     }
@@ -162,6 +166,10 @@ private fun BoxScope.RunningWorkspace(task: VisionTask, imageUri: String) {
  * preview and the inference result always describe the same bounded bitmap. The bitmap is
  * recycled when the key changes or the composable leaves composition, and a decode failure
  * shows a message instead of an empty placeholder.
+ *
+ * `ContentScale.Fit`, not `Crop`: [ResultOverlay] positions boxes by assuming the whole image is
+ * visible and centred with letterbox bars. Cropping would clip away part of the analysed frame, so
+ * detections in the cropped region could never be drawn while the result panel kept counting them.
  */
 @Composable
 private fun ImagePreview(imageUri: String, task: VisionTask, dimmed: Boolean = false) {
@@ -189,7 +197,7 @@ private fun ImagePreview(imageUri: String, task: VisionTask, dimmed: Boolean = f
         Image(
             bitmap = rendered,
             contentDescription = stringResource(R.string.selected_image_preview, stringResource(task.titleRes)),
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
         )
         if (dimmed) {
