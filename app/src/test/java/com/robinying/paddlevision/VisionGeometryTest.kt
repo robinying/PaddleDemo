@@ -2,6 +2,7 @@ package com.robinying.paddlevision
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class VisionGeometryTest {
@@ -23,6 +24,31 @@ class VisionGeometryTest {
         )
 
         assertEquals(1f / 7f, result, 0.0001f)
+    }
+
+    @Test
+    fun iouOfDisjointBoxesIsZero() {
+        val result = VisionGeometry.iou(
+            PixelBox(0f, 0f, 10f, 10f),
+            PixelBox(20f, 20f, 30f, 30f),
+        )
+
+        assertEquals(0f, result, 0f)
+    }
+
+    /**
+     * Boxes with no area have no union to divide by. The guard has to answer 0 rather than let the
+     * division produce a NaN, because suppression compares `iou > threshold` and a NaN comparison
+     * is always false, which would silently stop suppressing anything.
+     */
+    @Test
+    fun iouOfBoxesWithoutAreaIsZeroRatherThanNaN() {
+        val result = VisionGeometry.iou(
+            PixelBox(0f, 0f, 0f, 0f),
+            PixelBox(5f, 5f, 5f, 5f),
+        )
+
+        assertEquals(0f, result, 0f)
     }
 
     @Test
@@ -86,5 +112,40 @@ class VisionGeometryTest {
 
         assertEquals(listOf(1, 2), result)
         assertTrue(result.none { it == 0 })
+    }
+
+    /**
+     * The two `require` guards are what keeps a caller's bookkeeping mistake from becoming a wrong
+     * answer: pairing the shorter list positionally would suppress the wrong boxes instead of
+     * failing, and a threshold outside `0..1` makes every comparison meaningless.
+     */
+    @Test
+    fun nonMaximumSuppressionRejectsBoxesAndScoresOfDifferentLengths() {
+        try {
+            VisionGeometry.nonMaximumSuppression(
+                boxes = listOf(PixelBox(0f, 0f, 10f, 10f)),
+                scores = listOf(0.9f, 0.8f),
+                threshold = 0.5f,
+            )
+            fail("Expected a box/score length mismatch to be rejected")
+        } catch (_: IllegalArgumentException) {
+            // Expected: the contract is asserted rather than silently zipped.
+        }
+    }
+
+    @Test
+    fun nonMaximumSuppressionRejectsAThresholdOutsideTheUnitRange() {
+        listOf(-0.1f, 1.1f).forEach { threshold ->
+            try {
+                VisionGeometry.nonMaximumSuppression(
+                    boxes = listOf(PixelBox(0f, 0f, 10f, 10f)),
+                    scores = listOf(0.9f),
+                    threshold = threshold,
+                )
+                fail("Expected threshold $threshold to be rejected")
+            } catch (_: IllegalArgumentException) {
+                // Expected: both bounds are inclusive, so anything outside them is a caller bug.
+            }
+        }
     }
 }

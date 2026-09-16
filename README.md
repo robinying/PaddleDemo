@@ -93,13 +93,14 @@ shasum -a 256 -c third_party/paddle-assets.sha256
 
 覆盖范围包括：
 
-- UDF reducer 状态转换；
-- ViewModel 选图 Effect、推理成功状态、重复运行保护，以及运行中切换任务/图片时旧请求不会回写；
+- UDF reducer 状态转换，含 Photo Picker 取消（`ImageSelected(null)`）时清运行态、不遗留可运行图片；
+- ViewModel 选图 Effect、推理成功状态、重复运行保护，以及运行中切换任务/语言/图片/取消选图时旧请求不会回写；
 - 推理失败时界面拿到的是异常携带的可本地化文案，且兜底路径不会出现内部枚举名；
-- `InferenceGate` 的串行化与「排队中被取消的请求不会执行」；
+- `InferenceGate` 的串行化、「排队中被取消的请求不会执行」，以及 block 抛异常后锁仍被释放（否则一次失败会永久卡死后续推理）；
 - OCR 连通域提取、阅读顺序、CTC 解码的重复折叠与 blank 处理、尺寸换算、坐标转换、IoU 与 NMS；
+- 模型输出契约的失败分支：检测行数不整除、人脸 score/box 长度不匹配、识别输出短于声明的 timestep、字母表只有 blank、连通域尺寸非法或数据不足，均断言到具体的错误文案资源；
 - 目标检测类别 ID 到标签的映射与越界兜底；
-- 预览与推理共用的解码尺寸策略；
+- 预览与推理共用的解码尺寸策略，含宽或高单侧退化为 0/负数；
 - 资源完整性：各语言目录与默认 `values/` 的资源名集合必须一致，复数必须提供 `other` 数量，翻译不得改动位置参数（lint 不覆盖 `string-array` 与复数数量，由该用例补齐）。
 
 ### Lint 门禁
@@ -137,7 +138,7 @@ Instrumentation 覆盖：
 - 项目 Native bridge 加载；
 - `ImageDecoder`：file URI 尺寸约束、不可访问 URI、损坏图片、超出像素预算的超大图、PNG/WebP、EXIF `Orientation=6` 的解码朝向，以及「预览与推理解码策略一致」；
 - 真实 Paddle Lite Java/JNI runtime 创建 predictor 并执行目标检测 smoke test（按类别 ID 断言，与展示语言解耦）；
-- OCR 与人脸检测固定样例 smoke test，以及未打包 OCR 语言在加载任何模型前被拒绝；
+- OCR 与人脸检测固定样例 smoke test，未打包 OCR 语言在加载任何模型前被拒绝，模型文件未安装或为空、OCR 字典缺失时归类为资产缺失错误；
 - `ModelStore`：hash 不匹配时的原子重装、按任务惰性校验（准备物体检测不会安装人脸/OCR 资产）、同一实例不重复哈希；
 - `LocalVisionInferenceUseCase`：content URI 全链路，以及并发两次调用被串行化且都返回完整结果；
 - 界面路由：Photo Picker 取消后回到选图状态、OCR 语言选择器只列出已打包语言、Activity 重建后仍保留所选能力。

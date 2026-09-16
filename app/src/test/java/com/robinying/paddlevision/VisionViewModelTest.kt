@@ -148,6 +148,30 @@ class VisionViewModelTest {
         assertNull(viewModel.uiState.value.result)
         assertFalse(viewModel.uiState.value.isRunning)
     }
+
+    /**
+     * A cancelled picker arrives as `ImageSelected(null)` and is routed through the invalidation
+     * path rather than the run path, so an inference still in flight must not come back to the
+     * screen after the user has walked away from the picker.
+     */
+    @Test
+    fun cancellingThePickerInvalidatesRunningInferenceResult() = runTest {
+        val inferenceUseCase = ControllableVisionInferenceUseCase()
+        val viewModel = VisionViewModel(inferenceUseCase)
+        viewModel.onIntent(VisionIntent.ImageSelected("content://first"))
+        viewModel.onIntent(VisionIntent.RunRequested)
+        inferenceUseCase.awaitRunStarted()
+
+        viewModel.onIntent(VisionIntent.ImageSelected(null))
+        inferenceUseCase.complete(
+            VisionInferenceResult(VisionTask.OCR, ImageSize(100, 100), elapsedMillis = 5),
+        )
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.result)
+        assertFalse(viewModel.uiState.value.isRunning)
+        assertEquals(UiText(R.string.message_no_image_selected), viewModel.uiState.value.message)
+    }
 }
 
 private class FakeVisionInferenceUseCase(
