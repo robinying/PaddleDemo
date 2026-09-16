@@ -34,6 +34,13 @@ import java.util.Locale
 
 internal data class ResultEntry(val label: String, val confidence: Float)
 
+/**
+ * Formats a model confidence for display. Shared with the result overlay so a box chip and the
+ * entry in the result list can never round the same number differently.
+ */
+internal fun confidencePercent(confidence: Float): String =
+    String.format(Locale.getDefault(), "%.0f%%", confidence * 100)
+
 @Composable
 internal fun ResultPanel(state: VisionUiState) {
     val colors = VisionTheme.colors
@@ -130,7 +137,7 @@ private fun ResultEntries(
                         Text(
                             text = stringResource(
                                 R.string.ocr_confidence,
-                                String.format(Locale.getDefault(), "%.0f%%", entry.confidence * 100),
+                                confidencePercent(entry.confidence),
                             ),
                             color = colors.signalTeal,
                             fontSize = 12.sp,
