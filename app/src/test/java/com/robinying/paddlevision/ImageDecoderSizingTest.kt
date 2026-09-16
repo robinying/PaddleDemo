@@ -60,4 +60,22 @@ class ImageDecoderSizingTest {
             assertEquals(UiText(R.string.error_image_invalid), exception.text)
         }
     }
+
+    /**
+     * The width guard is evaluated first, so a source with a valid width never reaches the height
+     * check through the case above. A zero or negative height still has to be classified the same
+     * way rather than falling through to the scale arithmetic and dividing by it.
+     */
+    @Test
+    fun aHeightOnlyDegenerateImageIsReportedAsAnInvalidImage() {
+        listOf(0, -5).forEach { height ->
+            try {
+                calculateTargetSize(100, height, maxDimension = 2048, maxPixels = 4_000_000)
+                fail("Expected a height of $height to be rejected")
+            } catch (exception: VisionInferenceException) {
+                assertEquals(VisionErrorCode.IMAGE_DECODE_FAILED, exception.code)
+                assertEquals(UiText(R.string.error_image_invalid), exception.text)
+            }
+        }
+    }
 }

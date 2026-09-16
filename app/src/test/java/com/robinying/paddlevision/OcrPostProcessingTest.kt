@@ -92,6 +92,46 @@ class OcrPostProcessingTest {
         }
     }
 
+    /**
+     * A single-class alphabet is blank-only, so every timestep would decode to nothing. Rejecting
+     * it beats returning an empty block for an output that cannot describe any text.
+     */
+    @Test
+    fun ctcDecodingRejectsAnAlphabetWithNoCharacterClasses() {
+        try {
+            decodeOcrRecognition(
+                values = floatArrayOf(0.9f),
+                shape = longArrayOf(1, 1, 1),
+                dictionary = dictionary,
+                boundingBox = boundingBox,
+            )
+            fail("Expected a blank-only alphabet to be rejected")
+        } catch (exception: VisionInferenceException) {
+            assertEquals(VisionErrorCode.INFERENCE_FAILED, exception.code)
+            assertEquals(UiText(R.string.error_ocr_recognition_output_invalid), exception.text)
+        }
+    }
+
+    /**
+     * A truncated output is the shape a model build change produces. Reading it as if it were
+     * complete would decode timesteps from the next row's data, so the length is checked first.
+     */
+    @Test
+    fun ctcDecodingRejectsAnOutputShorterThanTheDeclaredTimesteps() {
+        try {
+            decodeOcrRecognition(
+                values = floatArrayOf(0.1f, 0.9f),
+                shape = longArrayOf(1, 2, classCount.toLong()),
+                dictionary = dictionary,
+                boundingBox = boundingBox,
+            )
+            fail("Expected a truncated recognition output to be rejected")
+        } catch (exception: VisionInferenceException) {
+            assertEquals(VisionErrorCode.INFERENCE_FAILED, exception.code)
+            assertEquals(UiText(R.string.error_ocr_recognition_output_invalid), exception.text)
+        }
+    }
+
     private fun oneHot(index: Int): FloatArray = hot(classCount, index)
 
     private fun blank(count: Int = classCount): FloatArray = hot(count, 0)
@@ -210,6 +250,42 @@ class OcrPostProcessingTest {
                 sourceSize = ImageSize(10, 10),
             )
             fail("Expected invalid detection map dimensions to be rejected")
+        } catch (exception: VisionInferenceException) {
+            assertEquals(UiText(R.string.error_ocr_detection_output_invalid), exception.text)
+        }
+    }
+
+    @Test
+    fun ocrRegionExtractionRejectsANegativeRegionLimit() {
+        try {
+            extractOcrRegions(
+                values = floatArrayOf(0.9f),
+                mapWidth = 1,
+                mapHeight = 1,
+                sourceSize = ImageSize(10, 10),
+                maxRegions = -1,
+            )
+            fail("Expected a negative region limit to be rejected")
+        } catch (exception: VisionInferenceException) {
+            assertEquals(UiText(R.string.error_ocr_detection_output_invalid), exception.text)
+        }
+    }
+
+    /**
+     * The scan walks `visited.indices`, which is derived from the map size. A model output shorter
+     * than the map it declares would index past the end of the value array, so the length is
+     * checked up front instead.
+     */
+    @Test
+    fun ocrRegionExtractionRejectsAMapLargerThanTheOutput() {
+        try {
+            extractOcrRegions(
+                values = floatArrayOf(0.9f),
+                mapWidth = 2,
+                mapHeight = 2,
+                sourceSize = ImageSize(20, 20),
+            )
+            fail("Expected a detection map larger than its output to be rejected")
         } catch (exception: VisionInferenceException) {
             assertEquals(UiText(R.string.error_ocr_detection_output_invalid), exception.text)
         }

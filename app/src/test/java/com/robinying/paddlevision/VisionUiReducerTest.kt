@@ -3,6 +3,7 @@ package com.robinying.paddlevision
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VisionUiReducerTest {
@@ -45,6 +46,44 @@ class VisionUiReducerTest {
 
         assertFalse(result.isRunning)
         assertEquals("content://picked", result.imageUri)
+    }
+
+    /**
+     * The system picker reports a cancellation as a null URI. Nothing may stay runnable in that
+     * case, otherwise the run button would start an inference on the previously staged image while
+     * the result panel claims no image was selected.
+     */
+    @Test
+    fun cancellingThePickerReportsNoSelectionAndLeavesNothingRunnable() {
+        val current = VisionUiState(selectedTask = VisionTask.OBJECT, isRunning = true)
+
+        val result = VisionUiReducer.reduce(current, VisionIntent.ImageSelected(null))
+
+        assertFalse(result.isRunning)
+        assertNull(result.imageUri)
+        assertFalse("A cancelled picker must not leave a runnable image behind", result.canRun)
+        assertEquals(UiText(R.string.message_no_image_selected), result.message)
+    }
+
+    /**
+     * Cancelling a re-pick keeps the image the user had already staged: they declined to replace
+     * it, not to drop it. Only the state that drives the run button is pinned here — the message is
+     * still [R.string.message_no_image_selected] while the workspace shows the previous image, so
+     * asserting it would freeze a wording wart rather than a contract.
+     */
+    @Test
+    fun cancellingARepickKeepsThePreviouslyStagedImage() {
+        val current = VisionUiState(
+            selectedTask = VisionTask.OBJECT,
+            imageUri = "content://staged",
+            isRunning = true,
+        )
+
+        val result = VisionUiReducer.reduce(current, VisionIntent.ImageSelected(null))
+
+        assertFalse(result.isRunning)
+        assertEquals("content://staged", result.imageUri)
+        assertTrue("The previously staged image stays runnable", result.canRun)
     }
 
     @Test
