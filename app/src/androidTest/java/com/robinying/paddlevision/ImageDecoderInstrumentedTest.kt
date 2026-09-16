@@ -205,7 +205,12 @@ class ImageDecoderInstrumentedTest {
         tiff[11] = 0x12
         tiff[13] = 0x03
         tiff[17] = 1
-        tiff[21] = orientation.toByte()
+        // A SHORT is left-justified inside the 4-byte value field, so the value belongs in bytes
+        // 18-19 and bytes 20-21 are padding. Writing it at byte 21 used to make the tag read back
+        // as Orientation 0, which is invalid, so the decoder ignored it and the test's expectation
+        // of a rotated bitmap could never hold.
+        tiff[18] = (orientation shr 8).toByte()
+        tiff[19] = orientation.toByte()
         // The "next IFD" offset stays zero.
         val payload = "Exif".toByteArray(Charsets.US_ASCII) + byteArrayOf(0, 0) + tiff
         val segmentLength = payload.size + 2
