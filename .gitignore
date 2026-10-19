@@ -23,3 +23,6 @@ local.properties
 # Generated device, test, and documentation outputs
 artifacts/
 docs/
+
+# Browser automation artifacts
+.playwright-mcp/
