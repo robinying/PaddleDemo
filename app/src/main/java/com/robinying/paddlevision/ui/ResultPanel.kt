@@ -13,10 +13,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -45,7 +45,9 @@ internal fun confidencePercent(confidence: Float): String =
 internal fun ResultPanel(state: VisionUiState) {
     val colors = VisionTheme.colors
     val context = LocalContext.current
-    val objectLabels = stringArrayResource(R.array.object_categories).toList()
+    val objectLabels = remember(context.resources) {
+        context.resources.getStringArray(R.array.object_categories).toList()
+    }
     val message = localizedText(state.message)
     val resultDescription = stringResource(R.string.analysis_result_accessibility, message)
     Card(

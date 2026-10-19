@@ -78,10 +78,16 @@ internal fun ImageWorkspace(state: VisionUiState) {
             contentAlignment = Alignment.Center,
         ) {
             val imageUri = state.imageUri
+            // Decode the preview once and keep it mounted across the idle/running switch: the two
+            // states used to call ImagePreview from different composition branches, which disposed
+            // the decoded bitmap and decoded the same image again at every run start and finish.
+            if (imageUri != null) {
+                ImagePreview(imageUri = imageUri, task = state.selectedTask, dimmed = state.isRunning)
+            }
             when {
                 imageUri == null -> EmptyWorkspace(state.selectedTask)
-                state.isRunning -> RunningWorkspace(state.selectedTask, imageUri)
-                else -> SelectedWorkspace(state.selectedTask, imageUri)
+                state.isRunning -> RunningWorkspace(state.selectedTask)
+                else -> SelectedWorkspace(state.selectedTask)
             }
             val result = state.result
             if (result != null && imageUri != null && !state.isRunning) {
@@ -125,9 +131,8 @@ private fun EmptyWorkspace(task: VisionTask) {
 }
 
 @Composable
-private fun BoxScope.SelectedWorkspace(task: VisionTask, imageUri: String) {
+private fun BoxScope.SelectedWorkspace(task: VisionTask) {
     val colors = VisionTheme.colors
-    ImagePreview(imageUri = imageUri, task = task)
     WorkspaceCaption(
         modifier = Modifier.align(Alignment.BottomStart),
         title = stringResource(R.string.image_ready, stringResource(task.titleRes)),
@@ -138,9 +143,8 @@ private fun BoxScope.SelectedWorkspace(task: VisionTask, imageUri: String) {
 }
 
 @Composable
-private fun BoxScope.RunningWorkspace(task: VisionTask, imageUri: String) {
+private fun BoxScope.RunningWorkspace(task: VisionTask) {
     val colors = VisionTheme.colors
-    ImagePreview(imageUri = imageUri, task = task, dimmed = true)
     Column(
         modifier = Modifier
             .align(Alignment.Center)

@@ -2,6 +2,7 @@ package com.robinying.paddlevision.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -10,7 +11,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
@@ -49,8 +49,17 @@ internal fun ResultOverlay(result: VisionInferenceResult, modifier: Modifier = M
     val colors = VisionTheme.colors
     val accent = taskAccentColor(result.task)
     val context = LocalContext.current
-    val objectLabels = stringArrayResource(R.array.object_categories).toList()
-    val entries = result.overlayEntries(context.getString(R.string.object_unknown_category), objectLabels)
+    val objectLabels = remember(context.resources) {
+        context.resources.getStringArray(R.array.object_categories).toList()
+    }
+    val unknownCategoryFormat = remember(context.resources) {
+        context.getString(R.string.object_unknown_category)
+    }
+    // The draw list only changes with the result, so rebuild it on recomposition instead of
+    // re-formatting every label chip on each pass.
+    val entries = remember(result, unknownCategoryFormat, objectLabels) {
+        result.overlayEntries(unknownCategoryFormat, objectLabels)
+    }
     if (entries.isEmpty()) return
 
     val textMeasurer = rememberTextMeasurer()

@@ -8,7 +8,6 @@ import com.baidu.paddle.lite.PowerMode
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
-import java.util.ArrayDeque
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -27,6 +26,9 @@ import kotlin.system.measureTimeMillis
  */
 class PaddleLiteEngine {
     private val predictorsByPath = mutableMapOf<String, PaddlePredictor>()
+
+    /** OCR dictionaries parsed once per engine, mirroring [predictorsByPath]. */
+    private val dictionariesByPath = mutableMapOf<String, List<String>>()
 
     fun run(
         task: VisionTask,
@@ -58,8 +60,9 @@ class PaddleLiteEngine {
                 )
             }
         }
-        val firstOutput = predictor.getOutput(0).floatDataOrThrow()
-        val firstShape = predictor.getOutput(0).shape()
+        val firstTensor = predictor.getOutput(0)
+        val firstOutput = firstTensor.floatDataOrThrow()
+        val firstShape = firstTensor.shape()
         val secondaryOutput = if (task == VisionTask.FACE) predictor.getOutput(1).floatDataOrThrow() else null
         return contract.decode(
             sourceSize = ImageSize(bitmap.width, bitmap.height),
@@ -104,8 +107,9 @@ class PaddleLiteEngine {
                     UiText(R.string.error_ocr_detection_failed),
                 )
             }
-            detectorOutput = detector.getOutput(0).floatDataOrThrow()
-            detectorShape = detector.getOutput(0).shape()
+            val output = detector.getOutput(0)
+            detectorOutput = output.floatDataOrThrow()
+            detectorShape = output.shape()
         }
         val regions = detectorOutput.toOcrRegions(
             shape = detectorShape,
@@ -119,7 +123,7 @@ class PaddleLiteEngine {
             )
         }
 
-        val dictionary = loadOcrDictionary(dictionaryFile)
+        val dictionary = dictionaryFor(dictionaryFile)
         val recognizer = predictorFor(recognizerFile)
         val blocks = regions.take(MAX_OCR_REGIONS).mapNotNull { region ->
             val recognition = recognizeRegion(bitmap, region, recognizer, dictionary)
@@ -154,8 +158,9 @@ class PaddleLiteEngine {
                         UiText(R.string.error_ocr_recognition_failed),
                     )
                 }
-                values = predictor.getOutput(0).floatDataOrThrow()
-                shape = predictor.getOutput(0).shape()
+                val output = predictor.getOutput(0)
+                values = output.floatDataOrThrow()
+                shape = output.shape()
             }
             return RecognizedRegion(
                 block = decodeOcrRecognition(values, shape, dictionary, region),
@@ -182,6 +187,10 @@ class PaddleLiteEngine {
             predictorsByPath[modelFile.absolutePath] = created
         }
     }
+
+    /** Parses an OCR dictionary once per engine, mirroring [predictorFor]. */
+    private fun dictionaryFor(dictionaryFile: File): List<String> =
+        dictionariesByPath.getOrPut(dictionaryFile.absolutePath) { loadOcrDictionary(dictionaryFile) }
 
     private fun createPredictor(modelFile: File): PaddlePredictor {
         return try {
@@ -374,22 +383,27 @@ internal fun extractOcrRegions(
             UiText(R.string.error_ocr_detection_output_invalid),
         )
     }
-    val visited = BooleanArray(mapWidth * mapHeight)
-    val regions = mutableListOf<OcrRegionCandidate>()
-    for (startIndex in visited.indices) {
+    val mapPixels = mapWidth * mapHeight
+    val visited = BooleanArray(mapPixels)
+    // Every pixel is enqueued at most once, so a flat int queue sized to the map cannot overflow
+    // and a 960x960 detection map never boxes an Integer, unlike ArrayDeque<Int>.
+    val queue = IntArray(mapPixels)
+    val regions = mutableListOf<PixelBox>()
+    for (startIndex in 0 until mapPixels) {
         if (visited[startIndex] || values[startIndex] < threshold) {
             continue
         }
-        val queue = ArrayDeque<Int>()
-        queue.addLast(startIndex)
+        var head = 0
+        var tail = 0
+        queue[tail++] = startIndex
         visited[startIndex] = true
         var pixelCount = 0
         var minX = mapWidth
         var minY = mapHeight
         var maxX = -1
         var maxY = -1
-        while (queue.isNotEmpty()) {
-            val index = queue.removeFirst()
+        while (head < tail) {
+            val index = queue[head++]
             val x = index % mapWidth
             val y = index / mapWidth
             pixelCount++
@@ -410,7 +424,7 @@ internal fun extractOcrRegions(
                     val neighborIndex = neighborY * mapWidth + neighborX
                     if (!visited[neighborIndex] && values[neighborIndex] >= threshold) {
                         visited[neighborIndex] = true
-                        queue.addLast(neighborIndex)
+                        queue[tail++] = neighborIndex
                     }
                 }
             }
@@ -429,16 +443,13 @@ internal fun extractOcrRegions(
             bottom = (maxY + 1) * scaleY,
         )
         if (box.width >= minimumRegionSize && box.height >= minimumRegionSize) {
-            regions += OcrRegionCandidate(box)
+            regions += box
         }
     }
     return regions
-        .sortedWith(compareBy<OcrRegionCandidate> { it.boundingBox.top }.thenBy { it.boundingBox.left })
+        .sortedWith(compareBy<PixelBox> { it.top }.thenBy { it.left })
         .take(maxRegions)
-        .map(OcrRegionCandidate::boundingBox)
 }
-
-private data class OcrRegionCandidate(val boundingBox: PixelBox)
 
 private fun FloatArray.toOcrRegions(shape: LongArray, sourceSize: ImageSize): List<PixelBox> {
     if (shape.size < 4) {
@@ -475,13 +486,24 @@ private fun Bitmap.toNchw(width: Int, height: Int, mean: FloatArray, standardDev
         val pixels = IntArray(width * height)
         scaled.getPixels(pixels, 0, width, 0, 0, width, height)
         val planeSize = width * height
-        return FloatArray(planeSize * 3).also { result ->
-            pixels.forEachIndexed { index, pixel ->
-                result[index] = (((pixel shr 16) and 0xFF) / 255f - mean[0]) / standardDeviation[0]
-                result[planeSize + index] = (((pixel shr 8) and 0xFF) / 255f - mean[1]) / standardDeviation[1]
-                result[planeSize * 2 + index] = ((pixel and 0xFF) / 255f - mean[2]) / standardDeviation[2]
-            }
+        val greenPlane = planeSize
+        val bluePlane = planeSize * 2
+        // (channel / 255 - mean) / deviation rewritten as channel * scale - offset so the
+        // per-pixel loop executes multiplications instead of two divisions per channel.
+        val redScale = 1f / (255f * standardDeviation[0])
+        val greenScale = 1f / (255f * standardDeviation[1])
+        val blueScale = 1f / (255f * standardDeviation[2])
+        val redOffset = mean[0] / standardDeviation[0]
+        val greenOffset = mean[1] / standardDeviation[1]
+        val blueOffset = mean[2] / standardDeviation[2]
+        val result = FloatArray(bluePlane + planeSize)
+        for (index in 0 until planeSize) {
+            val pixel = pixels[index]
+            result[index] = ((pixel shr 16) and 0xFF) * redScale - redOffset
+            result[greenPlane + index] = ((pixel shr 8) and 0xFF) * greenScale - greenOffset
+            result[bluePlane + index] = (pixel and 0xFF) * blueScale - blueOffset
         }
+        return result
     } finally {
         if (scaled !== this) scaled.recycle()
     }
